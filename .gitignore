@@ -1,0 +1,73 @@
+# Python 관련
+*.py[cod]
+*.py[cod].*
+__pycache__/
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+wheels/
+share/python-wheels/
+*.manifest
+*.spec
+
+# 가상 환경
+venv/
+ENV/
+env/
+env.bak/
+*.env
+
+# Django 관련
+*.log
+local_settings.py
+db.sqlite3
+media/
+
+# MySQL, MariaDB
+*.sql
+*.sql.gz
+
+# PostgreSQL
+*.pg.sql
+
+# 도커
+*.env
+
+# 임시 파일
+*.temp
+*.tmp
+*.swp
+*.swo
+*.swn
+~$*
+
+# Visual Studio Code
+.vscode/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# MacOS 관련
+.DS_Store
+.idea/
+
+# Windows 관련
+Thumbs.db
+ehthumbs.db
+
+# pyenv
+.python-version
+
+# celery beat schedule 파일
+celerybeat-schedule
+
+# sakila 데이터베이스
+sakila_data.sql.gz
+
+# 기타
+*.log
