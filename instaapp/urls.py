@@ -11,4 +11,5 @@ urlpatterns = [
     path('', include(router.urls)),
     path('auth/login/', UserViewSet.as_view({'post': 'login'}), name='login'),
     path('auth/register/', UserViewSet.as_view({'post': 'register'}), name='register'),
+    path('auth/me/', UserViewSet.as_view({'get': 'me'}), name='me'),
 ]

@@ -29,15 +29,19 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(request.user)
         return Response(serializer.data)
     
-    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
+    @action(detail=False, methods=['post'])
     def login(self, request):
         username_or_email = request.data.get('username_or_email')
         password = request.data.get('password')
+
+        if not username_or_email or not password:
+            return Response({"error": "Username/Email and password must be provided"}, status=status.HTTP_400_BAD_REQUEST)
+
         tokens = login_user(username_or_email, password)
-        if tokens:
-            return Response(tokens, status=status.HTTP_200_OK)
-        else:
-            return Response({'error': 'Invalid Credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+        if "error" in tokens:
+            return Response(tokens, status=status.HTTP_400_BAD_REQUEST)
+        
+        return Response(tokens, status=status.HTTP_200_OK)
     
     @action(detail=False, methods=['post'], permission_classes=[AllowAny])
     def register(self, request):

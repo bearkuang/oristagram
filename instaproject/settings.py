@@ -1,3 +1,4 @@
+from datetime import timedelta
 import os
 from pathlib import Path
 
@@ -35,6 +36,11 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+}
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=120),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
 }
 
 ASGI_APPLICATION = 'instaproject.asgi.application'
@@ -80,9 +86,11 @@ WSGI_APPLICATION = 'instaproject.wsgi.application'
 
 # Using Basic Authentication for Custom Backend Authentication
 AUTHENTICATION_BACKENDS = [
-    'instagram_clone.auth_backends.EmailOrUsernameModelBackend',
+    'instaapp.auth_backends.EmailOrUsernameModelBackend',
     'django.contrib.auth.backends.ModelBackend',
 ]
+
+AUTH_USER_MODEL = 'instaapp.CustomUser'
 
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
