@@ -31,12 +31,17 @@ class CustomUser(AbstractUser):
     # 생일
     birth_date = models.DateField(blank=True, null=True)
     # 프로필 사진
-    profile_picture = models.ImageField(upload_to='profile_pics/', blank=True, null=True)
+    profile_picture = models.ImageField(upload_to='profile_pics/', default='profile_pics/default_profile_image.png', blank=True, null=True)
     # 웹 사이트
     website = models.URLField(blank=True, null=True)
     
     groups = models.ManyToManyField(Group, related_name='customuser_set')
     user_permissions = models.ManyToManyField(Permission, related_name='customuser_set')
+    
+    def save(self, *args, **kwargs):
+        if not self.profile_picture:
+            self.profile_picture = 'default_profile_image.png'
+        super().save(*args, **kwargs)
     
     def __str__(self):
         return self.username

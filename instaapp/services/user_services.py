@@ -19,7 +19,7 @@ def create_user(user_data):
     user.save()
     
     # 디버깅을 위해 비밀번호 출력 (주의: 실제로는 보안상 이유로 이렇게 하지 말아야 합니다)
-    print(f"Created user: {user.username}, password: {user.password}")
+    # print(f"Created user: {user.username}, password: {user.password}")
     
     return user
 

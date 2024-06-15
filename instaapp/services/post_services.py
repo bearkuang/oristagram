@@ -1,8 +1,11 @@
 from instaapp.models.post import Post
 from django.core.exceptions import ObjectDoesNotExist
 
-def create_post(data, author):
-    post = Post.objects.create(author=author, **data)
+def create_post(data, user):
+    content = data.get('content', None)
+    image = data.get('image', '')
+    
+    post = Post.objects.create(author=user, content=content, image=image)
     return post
 
 def get_posts_by_user(user):
