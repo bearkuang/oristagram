@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import CustomUser, Post
+from .models import CustomUser, Post, Follow
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -23,3 +23,9 @@ class PostSerializer(serializers.ModelSerializer):
     
     def get_mark_count(self, obj):
         return obj.marks.count()
+    
+class FollowSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Follow
+        fields = ['id', 'follower', 'followed', 'created_at']
+        read_only_fields = ['follower', 'created_at']
