@@ -3,12 +3,14 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from instaapp.models.user import CustomUser
+from instaapp.models.follow import Follow
 from instaapp.serializers import UserSerializer
 from instaapp.services.user_services import create_user, login_user
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
+    psermission_classes = [IsAuthenticated]
     
     def get_permissions(self):
         if self.action in ['create', 'login', 'register']:
@@ -49,3 +51,11 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         user = create_user(serializer.validated_data)
         return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def following(self, request):
+        user = request.user
+        follows = Follow.objects.filter(follower=user).select_related('followed')
+        followed_users = [follow.followed for follow in follows]
+        serializer = UserSerializer(followed_users, many=True)
+        return Response(serializer.data)

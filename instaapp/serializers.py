@@ -11,19 +11,22 @@ class UserSerializer(serializers.ModelSerializer):
         if 'profile_picture' not in validated_data or not validated_data['profile_picture']:
             validated_data['profile_picture'] = 'profile_pics/default_profile_image.png'
         return super().create(validated_data)
-        
+
 class PostSerializer(serializers.ModelSerializer):
+    like_count = serializers.SerializerMethodField()
+    mark_count = serializers.SerializerMethodField()
+
     class Meta:
         model = Post
         fields = ['id', 'author', 'content', 'image', 'created_at', 'like_count', 'mark_count']
-        read_only_fields = ['author', 'created_at']
-        
+        read_only_fields = ['author', 'created_at', 'like_count', 'mark_count']
+
     def get_like_count(self, obj):
         return obj.likes.count()
-    
+
     def get_mark_count(self, obj):
         return obj.marks.count()
-    
+
 class FollowSerializer(serializers.ModelSerializer):
     class Meta:
         model = Follow
