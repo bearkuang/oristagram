@@ -2,9 +2,9 @@ from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from instaapp.models.post import Like, Mark, Post
+from instaapp.models.post import Like, Mark, Post, Comment
 from instaapp.models.follow import Follow
-from instaapp.serializers import PostSerializer
+from instaapp.serializers import PostSerializer, CommentSerializer
 from instaapp.services.post_services import create_post
 
 class PostViewSet(viewsets.ModelViewSet):
@@ -76,3 +76,21 @@ class PostViewSet(viewsets.ModelViewSet):
         posts = Post.objects.filter(author__in=followed_users).order_by('-created_at')
         serializer = self.get_serializer(posts, many=True)
         return Response(serializer.data)
+    
+    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
+    def comments(self, request, pk=None):
+        post = self.get_object()
+        comments = Comment.objects.filter(post=post).order_by('created_at')
+        serializer = CommentSerializer(comments, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def comment(self, request, pk=None):
+        post = self.get_object()
+        user = request.user
+        content = request.data.get('text')
+        if not content:
+            return Response({'error': 'Comment content cannot be empty'}, status=status.HTTP_400_BAD_REQUEST)
+        comment = Comment.objects.create(user=user, post=post, text=content)
+        serializer = CommentSerializer(comment)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
