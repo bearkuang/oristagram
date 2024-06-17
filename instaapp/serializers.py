@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import CustomUser, Post, Follow, Like, Mark, Comment
+from .models import CustomUser, Post, Image, Follow, Like, Mark, Comment
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -11,8 +11,14 @@ class UserSerializer(serializers.ModelSerializer):
         if 'profile_picture' not in validated_data or not validated_data['profile_picture']:
             validated_data['profile_picture'] = 'profile_pics/default_profile_image.png'
         return super().create(validated_data)
+    
+class ImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Image
+        fields = ['id', 'image', 'created_at']
 
 class PostSerializer(serializers.ModelSerializer):
+    images= ImageSerializer(many=True, read_only=True)
     like_count = serializers.SerializerMethodField()
     mark_count = serializers.SerializerMethodField()
     is_liked = serializers.SerializerMethodField()
@@ -22,7 +28,7 @@ class PostSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Post
-        fields = ['id', 'author', 'content', 'image', 'created_at', 'like_count', 'mark_count', 'is_liked', 'is_saved', 'comment_count']
+        fields = ['id', 'author', 'content', 'images', 'created_at', 'like_count', 'mark_count', 'is_liked', 'is_saved', 'comment_count']
         read_only_fields = ['author', 'created_at', 'like_count', 'mark_count', 'comment_count']
 
     def get_like_count(self, obj):
@@ -59,6 +65,8 @@ class FollowSerializer(serializers.ModelSerializer):
         read_only_fields = ['follower', 'created_at']
 
 class CommentSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    
     class Meta:
         model = Comment
         fields = ['id', 'user', 'post', 'text', 'created_at']

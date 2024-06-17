@@ -7,13 +7,20 @@ class Post(models.Model):
     author = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='posts')
     # 내용
     content = models.TextField(blank=True, null=True)
-    # 사진
-    image = models.ImageField(upload_to='posts/', null=False, blank=False)
     # 작성 시간
     created_at = models.DateTimeField(auto_now_add=True)
     
     def __str__(self):
         return self.content[:20] if self.content else "No Content"
+    
+# 이미지 모델 (여러 이미지를 업로드하기 위해)
+class Image(models.Model):
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='posts/')
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f'Image for post {self.post.id}'
     
 # 좋아요 모델
 class Like(models.Model):

@@ -2,9 +2,9 @@ from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from instaapp.models.post import Like, Mark, Post, Comment
+from instaapp.models.post import Like, Mark, Post, Image, Comment
 from instaapp.models.follow import Follow
-from instaapp.serializers import PostSerializer, CommentSerializer
+from instaapp.serializers import PostSerializer, ImageSerializer, CommentSerializer
 from instaapp.services.post_services import create_post
 
 class PostViewSet(viewsets.ModelViewSet):
@@ -13,11 +13,16 @@ class PostViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        post = create_post(serializer.validated_data, self.request.user)
-        headers = self.get_success_headers(PostSerializer(post).data)
-        return Response(PostSerializer(post).data, status=status.HTTP_201_CREATED, headers=headers)
+        data = request.data
+        images = request.FILES.getlist('images')
+        content = data.get('content')
+        post = Post.objects.create(author=request.user, content=content)
+        
+        for image in images:
+            Image.objects.create(post=post, image=image)
+        
+        serializer = self.get_serializer(post)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
