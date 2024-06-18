@@ -15,10 +15,10 @@ class UserSerializer(serializers.ModelSerializer):
 class ImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = Image
-        fields = ['id', 'image', 'created_at']
+        fields = ['id', 'file', 'created_at']
 
 class PostSerializer(serializers.ModelSerializer):
-    images= ImageSerializer(many=True, read_only=True)
+    images = ImageSerializer(many=True, read_only=True)
     like_count = serializers.SerializerMethodField()
     mark_count = serializers.SerializerMethodField()
     is_liked = serializers.SerializerMethodField()
@@ -37,12 +37,10 @@ class PostSerializer(serializers.ModelSerializer):
     def get_mark_count(self, obj):
         return obj.marks.count()
 
-    # 좋아요 했는지 여부
     def get_is_liked(self, obj):
         user = self.context.get('request').user
         return Like.objects.filter(user=user, post=obj).exists()
 
-    # 저잘 했는지 여부
     def get_is_saved(self, obj):
         user = self.context.get('request').user
         return Mark.objects.filter(user=user, post=obj).exists()

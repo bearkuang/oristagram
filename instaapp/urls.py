@@ -22,5 +22,6 @@ urlpatterns = [
     path('follows/<int:pk>/follow/', FollowViewSet.as_view({'post': 'follow'}), name='follow-follow'),
     path('follows/<int:pk>/unfollows/', FollowViewSet.as_view({'post': 'unfollows'}), name='follows-unfollows'),
     path('feed/', PostViewSet.as_view({'get': 'feed'}), name='user-feed'),
-    path('users/following/', UserViewSet.as_view({'get': 'followin'}), name='user-following'),
+    path('users/following/', UserViewSet.as_view({'get': 'following'}), name='user-following'),
+    path('users/profile/', UserViewSet.as_view({'get': 'profile'}), name='user-profile')
 ]

@@ -4,13 +4,14 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from instaapp.models.user import CustomUser
 from instaapp.models.follow import Follow
-from instaapp.serializers import UserSerializer
+from instaapp.models.post import Post
+from instaapp.serializers import UserSerializer, PostSerializer
 from instaapp.services.user_services import create_user, login_user
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
-    psermission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
     
     def get_permissions(self):
         if self.action in ['create', 'login', 'register']:
@@ -59,3 +60,24 @@ class UserViewSet(viewsets.ModelViewSet):
         followed_users = [follow.followed for follow in follows]
         serializer = UserSerializer(followed_users, many=True)
         return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def profile(self, request):
+        user = request.user
+        posts = Post.objects.filter(author=user).order_by('-created_at')
+        followers_count = Follow.objects.filter(followed=user).count()
+        following_count = Follow.objects.filter(follower=user).count()
+        posts_count = posts.count()
+
+        user_data = UserSerializer(user).data
+        context = {'request': request}
+        post_data = PostSerializer(posts, many=True, context=context).data
+
+        user_data.update({
+            'followers_count': followers_count,
+            'following_count': following_count,
+            'posts_count': posts_count,
+            'posts': post_data
+        })
+
+        return Response(user_data)

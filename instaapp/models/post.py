@@ -1,5 +1,12 @@
 from django.db import models
 from .user import CustomUser
+from django.core.exceptions import ValidationError
+
+def validate_file_type(value):
+    valid_mime_types = ['image/jpeg', 'image/png', 'image/jpg', 'video/mp4', 'video/mpeg']
+    file_mime_type = value.file.content_type
+    if file_mime_type not in valid_mime_types:
+        raise ValidationError('Unsupported file type.')
 
 # 피드 엔터티
 class Post(models.Model):
@@ -16,11 +23,11 @@ class Post(models.Model):
 # 이미지 모델 (여러 이미지를 업로드하기 위해)
 class Image(models.Model):
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='images')
-    image = models.ImageField(upload_to='posts/')
+    file = models.FileField(upload_to='posts/', validators=[validate_file_type])
     created_at = models.DateTimeField(auto_now_add=True)
     
     def __str__(self):
-        return f'Image for post {self.post.id}'
+        return f'File for post {self.post.id}'
     
 # 좋아요 모델
 class Like(models.Model):
@@ -54,4 +61,4 @@ class Comment(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f'{self.user.username} saved {self.post.id}'
+        return f'{self.user.username} commented on {self.post.id}'

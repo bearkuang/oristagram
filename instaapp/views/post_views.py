@@ -14,12 +14,12 @@ class PostViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         data = request.data
-        images = request.FILES.getlist('images')
+        files = request.FILES.getlist('files')
         content = data.get('content')
         post = Post.objects.create(author=request.user, content=content)
         
-        for image in images:
-            Image.objects.create(post=post, image=image)
+        for file in files:
+            Image.objects.create(post=post, file=file)
         
         serializer = self.get_serializer(post)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
