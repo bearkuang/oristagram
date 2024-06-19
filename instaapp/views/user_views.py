@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from instaapp.models.user import CustomUser
 from instaapp.models.follow import Follow
-from instaapp.models.post import Post
+from instaapp.models.post import Post, Mark
 from instaapp.serializers import UserSerializer, PostSerializer
 from instaapp.services.user_services import create_user, login_user
 
@@ -65,6 +65,9 @@ class UserViewSet(viewsets.ModelViewSet):
     def profile(self, request):
         user = request.user
         posts = Post.objects.filter(author=user).order_by('-created_at')
+        saved_posts = Mark.objects.filter(user=user).values_list('post', flat=True)
+        saved_posts = Post.objects.filter(id__in=saved_posts).order_by('-created_at')
+        
         followers_count = Follow.objects.filter(followed=user).count()
         following_count = Follow.objects.filter(follower=user).count()
         posts_count = posts.count()
@@ -72,12 +75,14 @@ class UserViewSet(viewsets.ModelViewSet):
         user_data = UserSerializer(user).data
         context = {'request': request}
         post_data = PostSerializer(posts, many=True, context=context).data
+        saved_post_data = PostSerializer(saved_posts, many=True, context=context).data
 
         user_data.update({
             'followers_count': followers_count,
             'following_count': following_count,
             'posts_count': posts_count,
-            'posts': post_data
+            'posts': post_data,
+            'saved_posts': saved_post_data
         })
 
         return Response(user_data)

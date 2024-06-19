@@ -1,4 +1,6 @@
 from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
 from instaapp.views.user_views import UserViewSet
 from instaapp.views.post_views import PostViewSet
@@ -8,6 +10,7 @@ router = DefaultRouter()
 router.register(r'users', UserViewSet)
 router.register(r'posts', PostViewSet)
 router.register(r'follows', FollowViewSet, basename='follows')
+
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -25,3 +28,6 @@ urlpatterns = [
     path('users/following/', UserViewSet.as_view({'get': 'following'}), name='user-following'),
     path('users/profile/', UserViewSet.as_view({'get': 'profile'}), name='user-profile')
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
