@@ -26,7 +26,11 @@ urlpatterns = [
     path('follows/<int:pk>/unfollows/', FollowViewSet.as_view({'post': 'unfollows'}), name='follows-unfollows'),
     path('feed/', PostViewSet.as_view({'get': 'feed'}), name='user-feed'),
     path('users/following/', UserViewSet.as_view({'get': 'following'}), name='user-following'),
-    path('users/profile/', UserViewSet.as_view({'get': 'profile'}), name='user-profile')
+    path('users/profile/', UserViewSet.as_view({'get': 'profile'}), name='user-profile'),
+    path('users/profile/<int:pk>/', UserViewSet.as_view({'get': 'profile'}), name='user-profile-specific'),
+    path('search/tags/', PostViewSet.as_view({'get': 'search_tags'}), name='search-tags'),
+    path('search/tagged/', PostViewSet.as_view({'get': 'tagged'}), name='search-tagged'),
+    path('search/usernames/', UserViewSet.as_view({'get': 'search_usernames'}), name='search-usernames')
 ]
 
 if settings.DEBUG:

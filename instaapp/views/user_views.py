@@ -2,6 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.decorators import action
+from django.db.models import Q, Count, Case, When, IntegerField, Value
 from instaapp.models.user import CustomUser
 from instaapp.models.follow import Follow
 from instaapp.models.post import Post, Mark
@@ -62,8 +63,8 @@ class UserViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
-    def profile(self, request):
-        user = request.user
+    def profile(self, request, pk=None):
+        user = self.get_object() if pk else request.user
         posts = Post.objects.filter(author=user).order_by('-created_at')
         saved_posts = Mark.objects.filter(user=user).values_list('post', flat=True)
         saved_posts = Post.objects.filter(id__in=saved_posts).order_by('-created_at')
@@ -86,3 +87,25 @@ class UserViewSet(viewsets.ModelViewSet):
         })
 
         return Response(user_data)
+    
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def search_usernames(self, request):
+        search_term = request.query_params.get('q', '').strip()
+        if not search_term:
+            return Response({"error": "Query parameter 'q' is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        users = CustomUser.objects.annotate(
+            follower_count=Count('followers'),
+            match_score=Case(
+                When(username__istartswith=search_term, then=Value(3)),  # username이 검색어로 시작하면 높은 점수
+                When(username__icontains=search_term, then=Value(2)),    # username에 검색어가 포함되면 중간 점수
+                When(bio__icontains=search_term, then=Value(1)),         # bio에 검색어가 포함되면 낮은 점수
+                default=Value(0),
+                output_field=IntegerField()
+            )
+        ).filter(
+            Q(username__icontains=search_term) | Q(bio__icontains=search_term)
+        ).order_by('-match_score', '-follower_count')
+
+        serializer = UserSerializer(users, many=True)
+        return Response(serializer.data)

@@ -8,6 +8,14 @@ def validate_file_type(value):
     if file_mime_type not in valid_mime_types:
         raise ValidationError('Unsupported file type.')
 
+# 태그
+class Tag(models.Model):
+    name = models.CharField(max_length=50, unique=True)
+    post_count = models.PositiveIntegerField(default=0) # 태그된 게시물 수
+    
+    def __str__(self):
+        return self.name
+
 # 피드 엔터티
 class Post(models.Model):
     # 작성자
@@ -16,6 +24,10 @@ class Post(models.Model):
     content = models.TextField(blank=True, null=True)
     # 작성 시간
     created_at = models.DateTimeField(auto_now_add=True)
+    # 태그
+    tags = models.ManyToManyField(Tag, related_name='posts', blank=True)
+    # 언급
+    mentions = models.ManyToManyField(CustomUser, related_name='mentioned_posts', blank=True)
     
     def __str__(self):
         return self.content[:20] if self.content else "No Content"
@@ -62,3 +74,5 @@ class Comment(models.Model):
 
     def __str__(self):
         return f'{self.user.username} commented on {self.post.id}'
+    
+

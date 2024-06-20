@@ -1,10 +1,10 @@
 from rest_framework import serializers
-from .models import CustomUser, Post, Image, Follow, Like, Mark, Comment
+from .models import CustomUser, Post, Image, Follow, Like, Mark, Comment, Tag
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = ['id', 'username', 'email', 'bio', 'birth_date', 'profile_picture', 'website']
+        fields = ['id', 'username', 'name', 'email', 'bio', 'birth_date', 'profile_picture', 'website']
         extra_kwargs = {'profile_picture': {'required': False}}
 
     def create(self, validated_data):
@@ -16,6 +16,13 @@ class ImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = Image
         fields = ['id', 'file', 'created_at']
+        
+class TagSerializer(serializers.ModelSerializer):
+    post_count = serializers.IntegerField()
+    
+    class Meta:
+        model = Tag
+        fields = ['id', 'name', 'post_count']
 
 class PostSerializer(serializers.ModelSerializer):
     images = ImageSerializer(many=True, read_only=True)
@@ -25,10 +32,12 @@ class PostSerializer(serializers.ModelSerializer):
     is_saved = serializers.SerializerMethodField()
     author = serializers.SerializerMethodField()
     comment_count = serializers.SerializerMethodField()
+    tags = TagSerializer(many=True, read_only=True)
+    mentions = UserSerializer(many=True, read_only=True)
 
     class Meta:
         model = Post
-        fields = ['id', 'author', 'content', 'images', 'created_at', 'like_count', 'mark_count', 'is_liked', 'is_saved', 'comment_count']
+        fields = ['id', 'author', 'content', 'images', 'created_at', 'like_count', 'mark_count', 'is_liked', 'is_saved', 'comment_count', 'tags', 'mentions']
         read_only_fields = ['author', 'created_at', 'like_count', 'mark_count', 'comment_count']
 
     def get_like_count(self, obj):
@@ -64,8 +73,9 @@ class FollowSerializer(serializers.ModelSerializer):
 
 class CommentSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
+    mentions = UserSerializer(many=True, read_only=True)
     
     class Meta:
         model = Comment
-        fields = ['id', 'user', 'post', 'text', 'created_at']
+        fields = ['id', 'user', 'post', 'text', 'created_at', 'mentions']
         read_only_fields = ['user', 'post', 'created_at']
