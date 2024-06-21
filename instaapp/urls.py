@@ -5,12 +5,15 @@ from rest_framework.routers import DefaultRouter
 from instaapp.views.user_views import UserViewSet
 from instaapp.views.post_views import PostViewSet
 from instaapp.views.follow_views import FollowViewSet
+from instaapp.views.reels_views import ReelsViewSet
+from instaapp.views.explore_views import ExploreViewSet
 
 router = DefaultRouter()
 router.register(r'users', UserViewSet)
 router.register(r'posts', PostViewSet)
 router.register(r'follows', FollowViewSet, basename='follows')
-
+router.register(r'reels', ReelsViewSet)
+router.register(r'explore', ExploreViewSet, basename='explore')
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -22,6 +25,7 @@ urlpatterns = [
     path('posts/<int:pk>/mark/', PostViewSet.as_view({'post': 'mark'}), name='post-mark'),
     path('posts/<int:pk>/unmark/', PostViewSet.as_view({'post': 'unmark'}), name='post-unmark'),
     path('posts/<int:pk>/comment/', PostViewSet.as_view({'post': 'comment'}), name='post-comment'),
+    path('posts/user/<int:user_id>/', PostViewSet.as_view({'get': 'user_posts'}), name='user-posts'),
     path('follows/<int:pk>/follow/', FollowViewSet.as_view({'post': 'follow'}), name='follow-follow'),
     path('follows/<int:pk>/unfollows/', FollowViewSet.as_view({'post': 'unfollows'}), name='follows-unfollows'),
     path('feed/', PostViewSet.as_view({'get': 'feed'}), name='user-feed'),
@@ -30,7 +34,13 @@ urlpatterns = [
     path('users/profile/<int:pk>/', UserViewSet.as_view({'get': 'profile'}), name='user-profile-specific'),
     path('search/tags/', PostViewSet.as_view({'get': 'search_tags'}), name='search-tags'),
     path('search/tagged/', PostViewSet.as_view({'get': 'tagged'}), name='search-tagged'),
-    path('search/usernames/', UserViewSet.as_view({'get': 'search_usernames'}), name='search-usernames')
+    path('search/usernames/', UserViewSet.as_view({'get': 'search_usernames'}), name='search-usernames'),
+    path('reels/<int:pk>/like/', ReelsViewSet.as_view({'post': 'like'}), name='reels-like'),
+    path('reels/<int:pk>/unlike/', ReelsViewSet.as_view({'post': 'unlike'}), name='reels-unlike'),
+    path('reels/<int:pk>/mark/', ReelsViewSet.as_view({'post': 'mark'}), name='reels-mark'),
+    path('reels/<int:pk>/unmark/', ReelsViewSet.as_view({'post': 'unmark'}), name='reels-unmark'),
+    path('reels/<int:pk>/comment/', ReelsViewSet.as_view({'post': 'comment'}), name='reels-comment'),
+    path('reels/user/<int:user_id>/', ReelsViewSet.as_view({'get': 'user_reels'}), name='user-reels'),
 ]
 
 if settings.DEBUG:

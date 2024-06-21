@@ -18,7 +18,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='image',
             name='file',
-            field=models.FileField(default='', upload_to='posts/', validators=[instaapp.models.post.validate_file_type]),
+            field=models.FileField(default='', upload_to='posts/', validators=[instaapp.models.post.validate_feed_file_type]),
             preserve_default=False,
         ),
     ]

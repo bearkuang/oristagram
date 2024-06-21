@@ -5,7 +5,8 @@ from rest_framework.decorators import action
 from django.db.models import Q, Count, Case, When, IntegerField, Value
 from instaapp.models.user import CustomUser
 from instaapp.models.follow import Follow
-from instaapp.models.post import Post, Mark
+from instaapp.models.post import Post
+from instaapp.models.mark import Mark
 from instaapp.serializers import UserSerializer, PostSerializer
 from instaapp.services.user_services import create_user, login_user
 
