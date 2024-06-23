@@ -150,9 +150,19 @@ class PostViewSet(viewsets.ModelViewSet):
         post = self.get_object()
         user = request.user
         content = request.data.get('text')
+        parent_id = request.data.get('parent_id')
+        
         if not content:
             return Response({'error': 'Comment content cannot be empty'}, status=status.HTTP_400_BAD_REQUEST)
-        comment = Comment.objects.create(user=user, post=post, text=content)
+        
+        parent = None
+        if parent_id:
+            try:
+                parent = Comment.objects.get(id=parent_id, post=post)
+            except Comment.DoesNotExist:
+                return Response({'error': 'Parent comment does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+
+        comment = Comment.objects.create(user=user, post=post, text=content, parent=parent)
         serializer = CommentSerializer(comment)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import CustomUser, Post, Image, Follow, Like, Mark, Comment, Tag, Reels
-from .models.reels import Video  # 이 부분을 수정합니다.
+from .models.reels import Video
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -12,6 +12,12 @@ class UserSerializer(serializers.ModelSerializer):
         if 'profile_picture' not in validated_data or not validated_data['profile_picture']:
             validated_data['profile_picture'] = 'profile_pics/default_profile_image.png'
         return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        return instance
     
 class ImageSerializer(serializers.ModelSerializer):
     class Meta:
@@ -75,11 +81,17 @@ class FollowSerializer(serializers.ModelSerializer):
 class CommentSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     mentions = UserSerializer(many=True, read_only=True)
-    
+    replies = serializers.SerializerMethodField()
+
     class Meta:
         model = Comment
-        fields = ['id', 'user', 'post', 'text', 'created_at', 'mentions']
-        read_only_fields = ['user', 'post', 'created_at']
+        fields = ['id', 'user', 'post', 'reels', 'text', 'created_at', 'mentions', 'replies', 'parent']
+        read_only_fields = ['user', 'post', 'reels', 'created_at']
+
+    def get_replies(self, obj):
+        if obj.replies.exists():
+            return CommentSerializer(obj.replies.all(), many=True).data
+        return []
 
 class VideoSerializer(serializers.ModelSerializer):
     class Meta:

@@ -9,6 +9,7 @@ class Comment(models.Model):
     reels = models.ForeignKey(Reels, on_delete=models.CASCADE, related_name='comments', null=True, blank=True)
     text = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
+    parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='replies')
 
     def __str__(self):
         return f'{self.user.username} commented on {self.post.id if self.post else self.reels.id}'

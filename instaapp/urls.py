@@ -7,13 +7,15 @@ from instaapp.views.post_views import PostViewSet
 from instaapp.views.follow_views import FollowViewSet
 from instaapp.views.reels_views import ReelsViewSet
 from instaapp.views.explore_views import ExploreViewSet
+from instaapp.views.comment_views import CommentViewSet
 
 router = DefaultRouter()
 router.register(r'users', UserViewSet)
 router.register(r'posts', PostViewSet)
 router.register(r'follows', FollowViewSet, basename='follows')
-router.register(r'reels', ReelsViewSet)
+router.register(r'reels', ReelsViewSet, basename='reels')
 router.register(r'explore', ExploreViewSet, basename='explore')
+router.register(r'comments', CommentViewSet, basename='comments')
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -40,7 +42,8 @@ urlpatterns = [
     path('reels/<int:pk>/mark/', ReelsViewSet.as_view({'post': 'mark'}), name='reels-mark'),
     path('reels/<int:pk>/unmark/', ReelsViewSet.as_view({'post': 'unmark'}), name='reels-unmark'),
     path('reels/<int:pk>/comment/', ReelsViewSet.as_view({'post': 'comment'}), name='reels-comment'),
-    path('reels/user/<int:user_id>/', ReelsViewSet.as_view({'get': 'user_reels'}), name='user-reels'),
+    path('reels/user/<int:user_id>/', ReelsViewSet.as_view({'get': 'user_reels'}), name='user-reels-specific'),
+    path('reels/top_reels/', ReelsViewSet.as_view({'get': 'top_reels'}), name='top-reels'),
 ]
 
 if settings.DEBUG:

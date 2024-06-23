@@ -1,3 +1,4 @@
+# views.py
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -11,6 +12,7 @@ from instaapp.models.follow import Follow
 from instaapp.models.user import CustomUser
 from instaapp.serializers import ReelsSerializer, VideoSerializer, CommentSerializer, TagSerializer
 from django.db.models import Count
+from instaapp.models.validators import validate_reels_file_type, validate_reels_video_length
 import json
 
 class ReelsViewSet(viewsets.ModelViewSet):
@@ -39,7 +41,7 @@ class ReelsViewSet(viewsets.ModelViewSet):
 
         for file in files:
             validate_reels_file_type(file)
-            validate_reels_video_length(file)
+            validate_reels_video_length(file)  # 수정된 부분: 일시적으로 파일 저장 및 검증
             Video.objects.create(reels=reels, file=file)
 
         for tag_name in tags_data:
@@ -184,5 +186,19 @@ class ReelsViewSet(viewsets.ModelViewSet):
     def user_reels(self, request, user_id=None):
         user = CustomUser.objects.get(pk=user_id)
         reels = Reels.objects.filter(author=user).order_by('-created_at')
+        serializer = self.get_serializer(reels, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def top_reels(self, request):
+        reels = Reels.objects.annotate(
+            total_engagement=Count('likes') + Count('comments')
+        ).order_by('-total_engagement', '-created_at')
+        
+        page = self.paginate_queryset(reels)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
         serializer = self.get_serializer(reels, many=True)
         return Response(serializer.data)

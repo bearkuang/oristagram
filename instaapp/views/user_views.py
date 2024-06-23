@@ -7,7 +7,8 @@ from instaapp.models.user import CustomUser
 from instaapp.models.follow import Follow
 from instaapp.models.post import Post
 from instaapp.models.mark import Mark
-from instaapp.serializers import UserSerializer, PostSerializer
+from instaapp.models.reels import Reels
+from instaapp.serializers import UserSerializer, PostSerializer, ReelsSerializer
 from instaapp.services.user_services import create_user, login_user
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -67,23 +68,31 @@ class UserViewSet(viewsets.ModelViewSet):
     def profile(self, request, pk=None):
         user = self.get_object() if pk else request.user
         posts = Post.objects.filter(author=user).order_by('-created_at')
-        saved_posts = Mark.objects.filter(user=user).values_list('post', flat=True)
-        saved_posts = Post.objects.filter(id__in=saved_posts).order_by('-created_at')
+        reels = Reels.objects.filter(author=user).order_by('created_at')
+        saved_post_ids = Mark.objects.filter(user=user, post__isnull=False).values_list('post_id', flat=True)
+        saved_posts = Post.objects.filter(id__in=saved_post_ids).order_by('-created_at')
+        saved_reel_ids = Mark.objects.filter(user=user, reels__isnull=False).values_list('reels_id', flat=True)
+        saved_reels = Reels.objects.filter(id__in=saved_reel_ids).order_by('created_at')
         
         followers_count = Follow.objects.filter(followed=user).count()
         following_count = Follow.objects.filter(follower=user).count()
         posts_count = posts.count()
+        reels_count = reels.count()
 
         user_data = UserSerializer(user).data
         context = {'request': request}
         post_data = PostSerializer(posts, many=True, context=context).data
+        reels_data = ReelsSerializer(reels, many=True, context=context).data
         saved_post_data = PostSerializer(saved_posts, many=True, context=context).data
+        saved_reels_data = ReelsSerializer(saved_reels, many=True, context=context).data
 
         user_data.update({
             'followers_count': followers_count,
             'following_count': following_count,
-            'posts_count': posts_count,
+            'posts_count': posts_count + reels_count,
             'posts': post_data,
+            'reels': reels_data,
+            'saved_reels': saved_reels_data,
             'saved_posts': saved_post_data
         })
 
@@ -109,4 +118,17 @@ class UserViewSet(viewsets.ModelViewSet):
         ).order_by('-match_score', '-follower_count')
 
         serializer = UserSerializer(users, many=True)
+        return Response(serializer.data)
+
+    # 사용자 정보 수정 메서드 추가
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+
+        if instance != request.user:
+            return Response({'error': 'You are not allowed to update this user.'}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
         return Response(serializer.data)
