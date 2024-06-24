@@ -57,13 +57,33 @@ class UserViewSet(viewsets.ModelViewSet):
         return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
-    def following(self, request):
-        user = request.user
+    def following(self, request, pk=None):
+        user = self.get_object() if pk else request.user
         follows = Follow.objects.filter(follower=user).select_related('followed')
         followed_users = [follow.followed for follow in follows]
         serializer = UserSerializer(followed_users, many=True)
         return Response(serializer.data)
-
+    
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def followers(self, request, pk=None):
+        user = self.get_object() if pk else request.user
+        followers = Follow.objects.filter(followed=user).select_related('follower')
+        follower_users = [follow.follower for follow in followers]
+        serializer = UserSerializer(follower_users, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def unfollow(self, request, pk=None):
+        try:
+            user_to_unfollow = CustomUser.objects.get(pk=pk)
+            follow_instance = Follow.objects.get(follower=user_to_unfollow, followed=request.user)
+            follow_instance.delete()
+            return Response({'status': 'unfollowed'}, status=status.HTTP_200_OK)
+        except CustomUser.DoesNotExist:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Follow.DoesNotExist:
+            return Response({'error': 'Follow relationship not found'}, status=status.HTTP_400_BAD_REQUEST)
+    
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def profile(self, request, pk=None):
         user = self.get_object() if pk else request.user
