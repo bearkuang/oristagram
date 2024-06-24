@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import CustomUser, Post, Image, Follow, Like, Mark, Comment, Tag, Reels
+from .models import CustomUser, Post, Image, Follow, Like, Mark, Comment, Tag, Reels, ChatRoom, Message
 from .models.reels import Video
 
 class UserSerializer(serializers.ModelSerializer):
@@ -138,3 +138,23 @@ class ReelsSerializer(serializers.ModelSerializer):
 
     def get_comment_count(self, obj):
         return obj.comments.count()
+    
+class MessageSerializer(serializers.ModelSerializer):
+    sender = UserSerializer(read_only=True)
+    receiver = UserSerializer(read_only=True)
+    
+    class Meta:
+        model = Message
+        fields = ['id', 'chatroom', 'sender', 'receiver', 'content', 'timestamp']
+
+class ChatRoomSerializer(serializers.ModelSerializer):
+    participants = UserSerializer(many=True, read_only=True)
+    last_message = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ChatRoom
+        fields = ['id', 'participants', 'created_at', 'last_message']
+
+    def get_last_message(self, obj):
+        last_message = obj.messages.order_by('-timestamp').first()
+        return MessageSerializer(last_message).data if last_message else None

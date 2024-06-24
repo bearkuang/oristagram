@@ -8,6 +8,7 @@ from instaapp.views.follow_views import FollowViewSet
 from instaapp.views.reels_views import ReelsViewSet
 from instaapp.views.explore_views import ExploreViewSet
 from instaapp.views.comment_views import CommentViewSet
+from instaapp.views.chat_views import ChatRoomViewSet
 
 router = DefaultRouter()
 router.register(r'users', UserViewSet)
@@ -16,6 +17,7 @@ router.register(r'follows', FollowViewSet, basename='follows')
 router.register(r'reels', ReelsViewSet, basename='reels')
 router.register(r'explore', ExploreViewSet, basename='explore')
 router.register(r'comments', CommentViewSet, basename='comments')
+router.register(r'chatrooms', ChatRoomViewSet, basename='chatroom')
 
 urlpatterns = [
     path('', include(router.urls)),

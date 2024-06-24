@@ -6,3 +6,4 @@ from .tag import Tag
 from .like import Like
 from .mark import Mark
 from .comment import Comment
+from .chatroom import ChatRoom, Message
