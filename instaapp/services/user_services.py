@@ -1,27 +1,57 @@
+import logging
+from django.db import IntegrityError
+from django.core.exceptions import ValidationError
+from django.contrib.auth.hashers import check_password
 from django.contrib.auth import get_user_model, authenticate
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
+from datetime import timedelta
 from django.core.exceptions import ObjectDoesNotExist
 from instaapp.models.user import CustomUser
+
+logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
 def create_user(user_data):
     bio = user_data.pop('bio', '')
-    birth_date = user_data.pop('birth_date', None)
+    birth_date = user_data.pop('birth_date', '')
     website = user_data.pop('website', '')
     profile_picture = user_data.pop('profile_picture', None)
     
-    user = CustomUser.objects.create_user(**user_data)
-    user.bio = bio
-    user.birth_date = birth_date
-    user.website = website
-    user.profile_picture = profile_picture
-    user.save()
+    # 필수 필드 확인
+    username = user_data.get('username')
+    email = user_data.get('email')
+    password = user_data.pop('password', None)  # password를 pop해서 따로 처리
     
-    # 디버깅을 위해 비밀번호 출력 (주의: 실제로는 보안상 이유로 이렇게 하지 말아야 합니다)
-    # print(f"Created user: {user.username}, password: {user.password}")
+    print(f"Received user data: {user_data}")  # 디버깅을 위한 출력
     
-    return user
+    if not username or not email or not password:
+        raise ValueError("Username, email, and password are required")
+    
+    # 중복 확인
+    if CustomUser.objects.filter(username=username).exists():
+        raise ValidationError("A user with that username already exists.")
+    
+    if CustomUser.objects.filter(email=email).exists():
+        raise ValidationError("A user with that email already exists.")
+    
+    try:
+        # create_user 메서드 호출
+        user = CustomUser.objects.create_user(
+            password=password,
+            **user_data
+        )
+        
+        user.bio = bio
+        user.birth_date = birth_date
+        user.website = website
+        user.profile_picture = profile_picture
+        user.save()
+        
+        return user
+    except IntegrityError:
+        # 데이터베이스 레벨에서의 중복 체크
+        raise ValidationError("An error occurred while creating the user. The username or email may already be in use.")
 
 def get_user_by_id(user_id):
     try:
@@ -35,29 +65,57 @@ def login_user(username_or_email, password):
     if '@' in username_or_email:
         try:
             user = CustomUser.objects.get(email=username_or_email)
-            print(f"Found user by email: {user.username}")
         except CustomUser.DoesNotExist:
-            print("No user found with this email.")
+            pass
     else:
         try:
             user = CustomUser.objects.get(username=username_or_email)
-            print(f"Found user by username: {user.username}")
         except CustomUser.DoesNotExist:
-            print("No user found with this username.")
+            pass
 
-    if user:
-        print(f"Authenticating user: {user.username} with password: {password}")
-        authenticated_user = authenticate(username=user.username, password=password)
-        if authenticated_user:
-            print("Authentication successful")
+    if user and user.check_password(password):
+        if user.is_active:
+            refresh = RefreshToken.for_user(user)
+            return {
+                'refresh': str(refresh),
+                'access': str(refresh.access_token),
+                'user_id': user.id,
+                'is_active': True,
+                'message': 'Logged in successfully.'
+            }
         else:
-            print("Authentication failed")
+            # 비활성화된 계정을 위한 임시 토큰
+            temp_token = AccessToken.for_user(user)
+            temp_token.set_exp(lifetime=timedelta(minutes=15))
+            return {
+                'temp_token': str(temp_token),
+                'user_id': user.id,
+                'is_active': False,
+                'message': 'Account is deactivated. Use this token to reactivate or delete your account.'
+            }
+    
+    raise ValidationError("Invalid credentials")
 
-    if user is None:
-        return {"error": "Invalid credentials"}
+def reactivate_user(user_id):
+    logger.debug(f"Attempting to reactivate user with id: {user_id}")
+    try:
+        user = CustomUser.objects.get(id=user_id)
+        logger.debug(f"Found user: {user}, current is_active: {user.is_active}")
+        if user.is_active:
+            logger.warning("Attempt to reactivate an already active account")
+            raise ValidationError("This account is already active")
+        user.is_active = True
+        user.save()
+        logger.debug(f"User reactivated successfully, new is_active: {user.is_active}")
+        return user
+    except CustomUser.DoesNotExist:
+        logger.error(f"User with id {user_id} not found")
+        raise ValidationError("User not found")
 
-    refresh = RefreshToken.for_user(user)
-    return {
-        'refresh': str(refresh),
-        'access': str(refresh.access_token),
-    }
+def delete_user(user_id):
+    try:
+        user = CustomUser.objects.get(id=user_id)
+        user.delete()
+        return True
+    except CustomUser.DoesNotExist:
+        raise ValidationError("User not found")

@@ -3,21 +3,23 @@ from .models import CustomUser, Post, Image, Follow, Like, Mark, Comment, Tag, R
 from .models.reels import Video
 
 class UserSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=True)
+    
     class Meta:
         model = CustomUser
-        fields = ['id', 'username', 'name', 'email', 'bio', 'birth_date', 'profile_picture', 'website']
-        extra_kwargs = {'profile_picture': {'required': False}}
-
-    def create(self, validated_data):
-        if 'profile_picture' not in validated_data or not validated_data['profile_picture']:
-            validated_data['profile_picture'] = 'profile_pics/default_profile_image.png'
-        return super().create(validated_data)
+        fields = ['id', 'username', 'name', 'email', 'password', 'bio', 'birth_date', 'profile_picture', 'website']
+        extra_kwargs = {
+            'profile_picture': {'required': False},
+            'bio': {'required': True},
+            'birth_date': {'required': True},
+            'website': {'required': False},
+        }
 
     def update(self, instance, validated_data):
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
-        return instance
+        password = validated_data.pop('password', None)
+        if password:
+            instance.set_password(password)
+        return super().update(instance, validated_data)
     
 class ImageSerializer(serializers.ModelSerializer):
     class Meta:
@@ -44,7 +46,7 @@ class PostSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Post
-        fields = ['id', 'author', 'content', 'images', 'created_at', 'like_count', 'mark_count', 'is_liked', 'is_saved', 'comment_count', 'tags', 'mentions']
+        fields = ['id', 'author', 'content', 'images', 'created_at', 'like_count', 'mark_count', 'is_liked', 'is_saved', 'comment_count', 'tags', 'mentions', 'site']
         read_only_fields = ['author', 'created_at', 'like_count', 'mark_count', 'comment_count']
 
     def get_like_count(self, obj):

@@ -12,7 +12,8 @@ class Post(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     tags = models.ManyToManyField(Tag, related_name='posts', blank=True)
     mentions = models.ManyToManyField(CustomUser, related_name='mentioned_posts', blank=True)
-
+    site = models.URLField(blank=True, null=True)
+    
     def __str__(self):
         return self.content[:20] if self.content else "No Content"
 

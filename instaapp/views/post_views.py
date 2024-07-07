@@ -23,6 +23,7 @@ class PostViewSet(viewsets.ModelViewSet):
         data = request.data
         files = request.FILES.getlist('files')
         content = data.get('content')
+        site = data.get('site')
 
         try:
             tags_data = json.loads(data.get('tags', '[]'))
@@ -34,7 +35,7 @@ class PostViewSet(viewsets.ModelViewSet):
         except json.JSONDecodeError:
             mentions_data = []
 
-        post = Post.objects.create(author=request.user, content=content)
+        post = Post.objects.create(author=request.user, content=content, site=site)
 
         for file in files:
             validate_feed_file_type(file)  # 파일 타입 검증

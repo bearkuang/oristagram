@@ -1,7 +1,10 @@
+import logging
 from rest_framework import viewsets, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.decorators import action
+from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
+from django.core.exceptions import ValidationError
 from django.db.models import Q, Count, Case, When, IntegerField, Value
 from instaapp.models.user import CustomUser
 from instaapp.models.follow import Follow
@@ -9,7 +12,10 @@ from instaapp.models.post import Post
 from instaapp.models.mark import Mark
 from instaapp.models.reels import Reels
 from instaapp.serializers import UserSerializer, PostSerializer, ReelsSerializer
-from instaapp.services.user_services import create_user, login_user
+from instaapp.services.user_services import create_user, login_user, reactivate_user, delete_user
+from instaapp.authentication import TempTokenAuthentication
+
+logger = logging.getLogger(__name__)
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = CustomUser.objects.all()
@@ -43,18 +49,24 @@ class UserViewSet(viewsets.ModelViewSet):
         if not username_or_email or not password:
             return Response({"error": "Username/Email and password must be provided"}, status=status.HTTP_400_BAD_REQUEST)
 
-        tokens = login_user(username_or_email, password)
-        if "error" in tokens:
-            return Response(tokens, status=status.HTTP_400_BAD_REQUEST)
-        
-        return Response(tokens, status=status.HTTP_200_OK)
+        try:
+            result = login_user(username_or_email, password)
+            return Response(result, status=status.HTTP_200_OK)
+        except ValidationError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
     
     @action(detail=False, methods=['post'], permission_classes=[AllowAny])
     def register(self, request):
         serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = create_user(serializer.validated_data)
-        return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
+        if serializer.is_valid():
+            try:
+                user = create_user(serializer.validated_data)
+                return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
+            except ValidationError as e:
+                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            except ValueError as e:
+                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def following(self, request, pk=None):
@@ -152,3 +164,67 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         return Response(serializer.data)
+    
+    # 계정 비활성화
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def deactivate(self, request):
+        user = request.user
+        user.is_active = False
+        user.save()
+        
+        # 데이터는 삭제하지 않고 비활성화
+        return Response({"message": "User account has been deactivated."}, status=status.HTTP_200_OK)
+    
+    # 계정 비활성화 해제
+    @action(detail=False, methods=['post'], authentication_classes=[TempTokenAuthentication], permission_classes=[AllowAny])
+    def reactivate_account(self, request):
+        user = request.user
+        logger.debug(f"Reactivate account requested for user: {user}, is_active: {user.is_active}")
+        
+        try:
+            user = reactivate_user(user.id)
+            logger.debug(f"User reactivated: {user}, is_active: {user.is_active}")
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                'message': 'Account reactivated successfully',
+                'refresh': str(refresh),
+                'access': str(refresh.access_token),
+                'user': UserSerializer(user).data
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Error reactivating account: {str(e)}")
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+    # 비활성화 계정 탈퇴
+    @action(detail=False, methods=['post'], authentication_classes=[TempTokenAuthentication], permission_classes=[AllowAny])
+    def delete_deactivated_account(self, request):
+        user = request.user
+        logger.debug(f"Delete deactivated account requested for user: {user}, is_active: {user.is_active}")
+        
+        try:
+            if user.is_active:
+                return Response({'error': 'This account is active. Use the normal delete account process.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            if delete_user(user.id):
+                return Response({'message': 'Account deleted successfully'}, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Error deleting deactivated account: {str(e)}")
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+    # 활성화된 계정 탈퇴
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def delete_account(self, request):
+        user = request.user
+        logger.debug(f"Delete account requested for user: {user}, is_active: {user.is_active}")
+        
+        # 비밀번호 확인
+        password = request.data.get('password')
+        if not user.check_password(password):
+            return Response({'error': 'Invalid password'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            user.delete()
+            return Response({'message': 'Account deleted successfully'}, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Error deleting account: {str(e)}")
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)

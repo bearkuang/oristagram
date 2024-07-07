@@ -7,14 +7,13 @@ class CustomUserManager(BaseUserManager):
             raise ValueError('The Username field must be set')
         if not email:
             raise ValueError('The Email field must be set')
+        if not password:
+            raise ValueError('The Password field must be set')
 
         email = self.normalize_email(email)
         user = self.model(username=username, name=name, email=email, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
-
-        # 디버깅을 위해 비밀번호 출력 (주의: 실제로는 보안상 이유로 이렇게 하지 말아야 함)
-        print(f"Created user: {user.username}, password: {user.password}")
 
         return user
 
@@ -33,16 +32,16 @@ class CustomUser(AbstractUser):
     # 생일
     birth_date = models.DateField(blank=True, null=True)
     # 프로필 사진
-    profile_picture = models.ImageField(upload_to='profile_pics/', default='profile_pics/default_profile_image.png', blank=True, null=True)
+    profile_picture = models.ImageField(upload_to='profile_pics/', blank=True, null=True)
     # 웹 사이트
     website = models.URLField(blank=True, null=True)
+    # 활성화 여부
+    is_active = models.BooleanField(default=True)
     
     groups = models.ManyToManyField(Group, related_name='customuser_set')
     user_permissions = models.ManyToManyField(Permission, related_name='customuser_set')
     
     def save(self, *args, **kwargs):
-        if not self.profile_picture:
-            self.profile_picture = 'default_profile_image.png'
         super().save(*args, **kwargs)
     
     def __str__(self):
