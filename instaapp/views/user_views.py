@@ -228,3 +228,19 @@ class UserViewSet(viewsets.ModelViewSet):
         except Exception as e:
             logger.error(f"Error deleting account: {str(e)}")
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+    # 신규 가입한 사용자 5명 추천
+    @action(detail=False, methods=['get'])
+    def new_users(self, request):
+        current_user = request.user
+        
+        # 현재 사용자가 팔로우하는 사용자들의 ID 목록
+        followed_users = Follow.objects.filter(follower=current_user).values_list('followed', flat=True)
+        
+        # 현재 사용자와 팔로우하는 사용자들을 제외한 최근 가입한 사용자 5명을 조회
+        new_users = CustomUser.objects.exclude(
+            Q(id=current_user.id) | Q(id__in=followed_users)
+        ).order_by('-date_joined')[:5]
+        
+        serializer = self.get_serializer(new_users, many=True)
+        return Response(serializer.data)

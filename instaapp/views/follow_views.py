@@ -38,3 +38,14 @@ class FollowViewSet(viewsets.ModelViewSet):
             return Response({'status': 'Unfollowed successfully'}, status=status.HTTP_200_OK)
         except Follow.DoesNotExist:
             return Response({'error': 'No Follow matches the given query.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+    @action(detail=True, methods=['get'])
+    def follow_status(self, request, pk=None):
+        follower = request.user
+        try:
+            followed = CustomUser.objects.get(pk=pk)
+        except CustomUser.DoesNotExist:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        is_following = Follow.objects.filter(follower=follower, followed=followed).exists()
+        return Response({'is_following': is_following}, status=status.HTTP_200_OK)
