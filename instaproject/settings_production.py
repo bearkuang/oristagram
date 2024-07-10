@@ -1,10 +1,9 @@
 from datetime import timedelta
 import os
 from pathlib import Path
-from .settings_base import *
-
-if os.environ.get('DJANGO_ENVIRONMENT') == 'production':
-    from .settings_production import *
+from dotenv import load_dotenv
+from django.core.management.utils import get_random_secret_key
+print(get_random_secret_key())
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -17,12 +16,12 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-(_*fc=p92g3l7^)z13k*k7xjx)t4@_n3-8w@yw5ebc^d5r=$0e'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['10.0.136.88', 'http://oristagram.com']
 
 
 # Application definition
@@ -70,6 +69,8 @@ MIDDLEWARE = [
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
+    "http://oristagram.com",
+    "https://d3tdc4vq08l1b4.cloudfront.net",
 ]
 
 ROOT_URLCONF = 'instaproject.urls'
@@ -103,14 +104,16 @@ AUTH_USER_MODEL = 'instaapp.CustomUser'
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
+load_dotenv()
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'instagram',
-        'USER': 'ori',
-        'PASSWORD': 'oripassword',
-        'HOST': 'localhost',
-        'PORT': '3306',
+        'NAME': os.getenv('DB_NAME'),
+        'USER': os.getenv('DB_USER'),
+        'PASSWORD': os.getenv('DB_PASSWORD'),
+        'HOST': os.getenv('DB_HOST'),
+        'PORT': os.getenv('DB_PORT'),
     },
 }
 
@@ -170,3 +173,14 @@ LOGGING = {
         'level': 'DEBUG',
     },
 }
+
+# STATIC_ROOT
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# Setting Security for production
+SECURE_SSL_REDIRECT = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+
+
+

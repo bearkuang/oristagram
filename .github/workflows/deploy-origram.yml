@@ -60,17 +60,23 @@ jobs:
     - name: Collect Static Files
       run: |
         python manage.py collectstatic --noinput
-    - name: Build Docker Image
-      run: |
-        docker build -t my-django-app .
-    - name: Push to ECR
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ap-northeast-2
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+    - name: Build, tag, and push image to Amazon ECR
       env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: my-django-app
+        IMAGE_TAG: ${{ github.sha }}
       run: |
-        aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 654654614721.dkr.ecr.ap-northeast-2.amazonaws.com
-        docker tag my-django-app:latest 654654614721.dkr.ecr.ap-northeast-2.amazonaws.com/my-django-app:latest
-        docker push 654654614721.dkr.ecr.ap-northeast-2.amazonaws.com/my-django-app:latest
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
   deploy:
     runs-on: ubuntu-latest
@@ -81,32 +87,32 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-1
-
+        aws-region: ap-northeast-2
     - name: Deploy to EC2
       env:
-        PRIVATE_KEY: ${{ secrets.EC2_PRIVATE_KEY }}
-        HOST_NAME: ${{ secrets.HOST_NAME }}
+        BASTION_PRIVATE_KEY: ${{ secrets.BASTION_PRIVATE_KEY }}
+        EC2_PRIVATE_KEY: ${{ secrets.EC2_PRIVATE_KEY }}
+        BASTION_HOST: ${{ secrets.BASTION_HOST }}
+        PRIVATE_HOST: ${{ secrets.PRIVATE_HOST }}
         USER_NAME: ${{ secrets.USER_NAME }}
+        ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+        ECR_REPOSITORY: my-django-app
+        IMAGE_TAG: ${{ github.sha }}
       run: |
-        echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
-        ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOST_NAME} '
-          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 654654614721.dkr.ecr.ap-northeast-2.amazonaws.com
-          docker pull 654654614721.dkr.ecr.ap-northeast-2.amazonaws.com/my-django-app:latest
-          docker stop my-django-app || true
-          docker rm my-django-app || true
-          docker run -d --name my-django-app -p 8000:8000 654654614721.dkr.ecr.ap-northeast-2.amazonaws.com/my-django-app:latest
-          docker exec my-django-app python manage.py migrate
-        '
-
-    - name: Run DB Migrations
+        echo "$BASTION_PRIVATE_KEY" > bastion_key && chmod 600 bastion_key
+        echo "$EC2_PRIVATE_KEY" > ec2_key && chmod 600 ec2_key
+        ssh -o StrictHostKeyChecking=no -i bastion_key -J ${USER_NAME}@${BASTION_HOST} ${USER_NAME}@${PRIVATE_HOST} \
+        "docker login -u AWS -p $(aws ecr get-login-password --region ap-northeast-2) ${ECR_REGISTRY} && \
+         docker pull ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG} && \
+         docker stop my-django-app || true && \
+         docker rm my-django-app || true && \
+         docker run -d --name my-django-app -p 8000:8000 \
+         -e DB_NAME='${DB_NAME}' \
+         -e DB_USER='${DB_USER}' \
+         -e DB_PASSWORD='${DB_PASSWORD}' \
+         -e DB_HOST='${DB_HOST}' \
+         ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG} && \
+         docker exec my-django-app python manage.py migrate"
+    - name: Cleanup
       run: |
-        ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOST_NAME} '
-          docker exec my-django-app python manage.py migrate
-        '
-
-    - name: Restart Gunicorn
-      run: |
-        ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOST_NAME} '
-          sudo systemctl restart gunicorn
-        '
+        rm bastion_key ec2_key

@@ -1,10 +1,6 @@
 from datetime import timedelta
 import os
 from pathlib import Path
-from .settings_base import *
-
-if os.environ.get('DJANGO_ENVIRONMENT') == 'production':
-    from .settings_production import *
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
