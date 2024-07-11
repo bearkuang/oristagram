@@ -21,7 +21,7 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = ['10.0.136.88', 'http://oristagram.com']
+ALLOWED_HOSTS = ['10.0.136.88', 'oristagram.com']
 
 
 # Application definition
