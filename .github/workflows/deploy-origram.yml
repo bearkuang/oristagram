@@ -84,12 +84,12 @@ jobs:
         IMAGE_TAG: ${{ github.sha }}
       run: |
         docker build \
-          --build-arg DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }} \
-          --build-arg DB_NAME=${{ secrets.DB_NAME }} \
-          --build-arg DB_USER=${{ secrets.DB_USER }} \
-          --build-arg DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
-          --build-arg DB_HOST=${{ secrets.DB_HOST }} \
-          --build-arg DB_PORT=${{ secrets.DB_PORT }} \
+          --build-arg DJANGO_SECRET_KEY="${{ secrets.DJANGO_SECRET_KEY }}" \
+          --build-arg DB_NAME="${{ secrets.DB_NAME }}" \
+          --build-arg DB_USER="${{ secrets.DB_USER }}" \
+          --build-arg DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
+          --build-arg DB_HOST="${{ secrets.DB_HOST }}" \
+          --build-arg DB_PORT="${{ secrets.DB_PORT }}" \
           -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
   deploy:
@@ -125,12 +125,13 @@ jobs:
          docker pull ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG} && \
          docker stop my-django-app || true && \
          docker rm my-django-app || true && \
-         docker run -d --name myproject -p 8000:8000 \
+         docker run -d --name my-django-app -p 8000:8000 \
          -e DB_NAME='${DB_NAME}' \
          -e DB_USER='${DB_USER}' \
          -e DB_PASSWORD='${DB_PASSWORD}' \
          -e DB_HOST='${DB_HOST}' \
          -e DJANGO_SECRET_KEY='${DJANGO_SECRET_KEY}' \
+         -e DJANGO_DEBUG='False' \
          ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG} && \
          docker exec my-django-app python manage.py migrate"
     - name: Cleanup
