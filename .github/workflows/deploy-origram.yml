@@ -53,9 +53,21 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-    - name: Collect Static Files
+    - name: Create static and media directories
       run: |
-        python manage.py collectstatic --noinput
+        mkdir -p static
+        mkdir -p media
+    - name: Collect Static Files
+      env:
+        DJANGO_SETTINGS_MODULE: instaproject.settings
+        DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+        DB_NAME: ${{ secrets.DB_NAME }}
+        DB_USER: ${{ secrets.DB_USER }}
+        DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        DB_HOST: ${{ secrets.DB_HOST }}
+        DB_PORT: ${{ secrets.DB_PORT }}
+        DJANGO_DEBUG: 'False'
+      run: python manage.py collectstatic --noinput
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
@@ -71,7 +83,14 @@ jobs:
         ECR_REPOSITORY: my-django-app
         IMAGE_TAG: ${{ github.sha }}
       run: |
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker build \
+          --build-arg DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }} \
+          --build-arg DB_NAME=${{ secrets.DB_NAME }} \
+          --build-arg DB_USER=${{ secrets.DB_USER }} \
+          --build-arg DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
+          --build-arg DB_HOST=${{ secrets.DB_HOST }} \
+          --build-arg DB_PORT=${{ secrets.DB_PORT }} \
+          -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
   deploy:
     runs-on: ubuntu-latest
@@ -97,6 +116,7 @@ jobs:
         DB_USER: ${{ secrets.DB_USER }}
         DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         DB_HOST: ${{ secrets.DB_HOST }}
+        DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
       run: |
         echo "$BASTION_PRIVATE_KEY" > bastion_key && chmod 600 bastion_key
         echo "$EC2_PRIVATE_KEY" > ec2_key && chmod 600 ec2_key
@@ -105,11 +125,12 @@ jobs:
          docker pull ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG} && \
          docker stop my-django-app || true && \
          docker rm my-django-app || true && \
-         docker run -d --name my-django-app -p 8000:8000 \
+         docker run -d --name myproject -p 8000:8000 \
          -e DB_NAME='${DB_NAME}' \
          -e DB_USER='${DB_USER}' \
          -e DB_PASSWORD='${DB_PASSWORD}' \
          -e DB_HOST='${DB_HOST}' \
+         -e DJANGO_SECRET_KEY='${DJANGO_SECRET_KEY}' \
          ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG} && \
          docker exec my-django-app python manage.py migrate"
     - name: Cleanup
