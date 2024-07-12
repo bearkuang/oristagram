@@ -126,14 +126,36 @@ jobs:
         echo "BASTION_PRIVATE_KEY length: ${#BASTION_PRIVATE_KEY}"
       env:
         BASTION_PRIVATE_KEY: ${{ secrets.BASTION_PRIVATE_KEY }}
-    - name: Test SSH connection
-      run: ssh -v -o StrictHostKeyChecking=no -i bastion_key ${USER_NAME}@${BASTION_HOST} 'echo "SSH connection successful"'
+    - name: Check and fix .ssh directory permissions
+      run: |
+        ssh -o StrictHostKeyChecking=no -i bastion_key ${USER_NAME}@${BASTION_HOST} '
+          ls -ld ~/.ssh
+          chmod 700 ~/.ssh
+          ls -ld ~/.ssh
+        '
       env:
         USER_NAME: ${{ secrets.USER_NAME }}
         BASTION_HOST: ${{ secrets.BASTION_HOST }}
     - name: Transfer EC2 private key to bastion host
       run: |
-        scp -o StrictHostKeyChecking=no -i bastion_key ec2_key ${USER_NAME}@${BASTION_HOST}:~/.ssh/${{ secrets.PRIVATE_KEY_NAME }}
+        scp -o StrictHostKeyChecking=no -i bastion_key ec2_key ${USER_NAME}@${BASTION_HOST}:~/
+      env:
+        USER_NAME: ${{ secrets.USER_NAME }}
+        BASTION_HOST: ${{ secrets.BASTION_HOST }}
+    - name: Move key file to .ssh directory
+      run: |
+        ssh -o StrictHostKeyChecking=no -i bastion_key ${USER_NAME}@${BASTION_HOST} '
+          mv ~/ec2_key ~/.ssh/${{ secrets.PRIVATE_KEY_NAME }}
+          chmod 600 ~/.ssh/${{ secrets.PRIVATE_KEY_NAME }}
+        '
+      env:
+        USER_NAME: ${{ secrets.USER_NAME }}
+        BASTION_HOST: ${{ secrets.BASTION_HOST }}
+    - name: Verify key file transfer
+      run: |
+        ssh -o StrictHostKeyChecking=no -i bastion_key ${USER_NAME}@${BASTION_HOST} '
+          ls -l ~/.ssh/${{ secrets.PRIVATE_KEY_NAME }}
+        '
       env:
         USER_NAME: ${{ secrets.USER_NAME }}
         BASTION_HOST: ${{ secrets.BASTION_HOST }}
