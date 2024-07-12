@@ -126,9 +126,14 @@ jobs:
         echo "BASTION_PRIVATE_KEY length: ${#BASTION_PRIVATE_KEY}"
       env:
         BASTION_PRIVATE_KEY: ${{ secrets.BASTION_PRIVATE_KEY }}
+    - name: Test SSH connection
+      run: ssh -v -o StrictHostKeyChecking=no -i bastion_key ${USER_NAME}@${BASTION_HOST} 'echo "SSH connection successful"'
+      env:
+        USER_NAME: ${{ secrets.USER_NAME }}
+        BASTION_HOST: ${{ secrets.BASTION_HOST }}
     - name: Transfer EC2 private key to bastion host
       run: |
-        scp -o StrictHostKeyChecking=no -i bastion_key.pem ec2_key.pem ${USER_NAME}@${BASTION_HOST}:~/.ssh/${{ secrets.PRIVATE_KEY_NAME }}
+        scp -o StrictHostKeyChecking=no -i bastion_key ec2_key ${USER_NAME}@${BASTION_HOST}:~/.ssh/${{ secrets.PRIVATE_KEY_NAME }}
       env:
         USER_NAME: ${{ secrets.USER_NAME }}
         BASTION_HOST: ${{ secrets.BASTION_HOST }}
