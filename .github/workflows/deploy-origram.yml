@@ -193,6 +193,40 @@ jobs:
         USER_NAME: ${{ secrets.USER_NAME }}
         BASTION_HOST: ${{ secrets.BASTION_HOST }}
         PRIVATE_HOST: ${{ secrets.PRIVATE_HOST }}
+    - name: Test database connection
+      run: |
+        ssh -o StrictHostKeyChecking=no -i bastion_key ${USER_NAME}@${BASTION_HOST} << EOF
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/${{ secrets.PRIVATE_KEY_NAME }} ubuntu@${PRIVATE_HOST} << 'INNEREOF'
+            docker exec \
+              -e DB_HOST='${DB_HOST}' \
+              -e DB_USER='${DB_USER}' \
+              -e DB_PASSWORD='${DB_PASSWORD}' \
+              -e DB_NAME='${DB_NAME}' \
+              -e DB_PORT='${DB_PORT}' \
+              my-django-app python -c "
+            import os
+            import MySQLdb
+            conn = MySQLdb.connect(
+                host=os.environ.get('DB_HOST'),
+                user=os.environ.get('DB_USER'),
+                passwd=os.environ.get('DB_PASSWORD'),
+                db=os.environ.get('DB_NAME'),
+                port=int(os.environ.get('DB_PORT', 3306))
+            )
+            print('Database connection successful')
+            conn.close()
+            "
+        INNEREOF
+        EOF
+      env:
+        USER_NAME: ${{ secrets.USER_NAME }}
+        BASTION_HOST: ${{ secrets.BASTION_HOST }}
+        PRIVATE_HOST: ${{ secrets.PRIVATE_HOST }}
+        DB_HOST: ${{ secrets.DB_HOST }}
+        DB_USER: ${{ secrets.DB_USER }}
+        DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        DB_NAME: ${{ secrets.DB_NAME }}
+        DB_PORT: ${{ secrets.DB_PORT }}
     - name: Install Docker on Private EC2
       run: |
         ssh -o StrictHostKeyChecking=no -i bastion_key ${USER_NAME}@${BASTION_HOST} << EOF
