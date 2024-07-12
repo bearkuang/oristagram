@@ -105,17 +105,29 @@ jobs:
     - name: Get Github action IP
       id: ip
       uses: haythem/public-ip@v1.2
-    - name: Test Bastion Connection
+    - name: Add Github Actions IP to Security group
       run: |
-        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i bastion_key ${USER_NAME}@${BASTION_HOST} 'echo "Bastion connection successful"'
+        aws ec2 authorize-security-group-ingress --group-id ${{ secrets.AWS_BAS_SG_ID }} --protocol tcp --port 22 --cidr ${{ steps.ip.outputs.ipv4 }}/32
+    - name: Create key files
+      run: |
+        echo "${{ secrets.BASTION_PRIVATE_KEY }}" > bastion_key
+        echo "${{ secrets.EC2_PRIVATE_KEY }}" > ec2_key
+        chmod 600 bastion_key ec2_key
+        echo "Key files created with permissions:"
+        ls -l bastion_key ec2_key
+    - name: Check if key files exist
+      run: |
+        echo "Bastion key file exists: $(test -f bastion_key && echo Yes || echo No)"
+        echo "EC2 key file exists: $(test -f ec2_key && echo Yes || echo No)"
     - name: Check environment variables
       run: |
         echo "BASTION_HOST is set: ${{ secrets.BASTION_HOST != '' }}"
         echo "PRIVATE_HOST is set: ${{ secrets.PRIVATE_HOST != '' }}"
         echo "USER_NAME is set: ${{ secrets.USER_NAME != '' }}"
-    - name: Add Github Actions IP to Security group
+        echo "ECR_REGISTRY is set: ${{ secrets.ECR_REGISTRY != '' }}"
+    - name: Test Bastion Connection
       run: |
-          aws ec2 authorize-security-group-ingress --group-id ${{ secrets.AWS_BAS_SG_ID }} --protocol tcp --port 22 --cidr ${{ steps.ip.outputs.ipv4 }}/32
+        ssh -v -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i bastion_key ${USER_NAME}@${BASTION_HOST} 'echo "Bastion connection successful"'
     - name: Deploy to EC2
       env:
         BASTION_PRIVATE_KEY: ${{ secrets.BASTION_PRIVATE_KEY }}
@@ -132,9 +144,7 @@ jobs:
         DB_HOST: ${{ secrets.DB_HOST }}
         DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
       run: |
-        echo "$BASTION_PRIVATE_KEY" > bastion_key && chmod 600 bastion_key
-        echo "$EC2_PRIVATE_KEY" > ec2_key && chmod 600 ec2_key
-        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i bastion_key -J ${USER_NAME}@${BASTION_HOST} ${USER_NAME}@${PRIVATE_HOST} '...'
+        ssh -v -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i bastion_key -J ${USER_NAME}@${BASTION_HOST} ${USER_NAME}@${PRIVATE_HOST} \
         "docker login -u AWS -p $(aws ecr get-login-password --region ap-northeast-2) ${ECR_REGISTRY} && \
          docker pull ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG} && \
          docker stop my-django-app || true && \
@@ -149,8 +159,10 @@ jobs:
          ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG} && \
          docker exec my-django-app python manage.py migrate"
     - name: Remove Github Actions IP From Security Group
+      if: always()
       run: |
-          aws ec2 revoke-security-group-ingress --group-id ${{ secrets.AWS_BAS_SG_ID }} --protocol tcp --port 22 --cidr ${{ steps.ip.outputs.ipv4 }}/32
+        aws ec2 revoke-security-group-ingress --group-id ${{ secrets.AWS_BAS_SG_ID }} --protocol tcp --port 22 --cidr ${{ steps.ip.outputs.ipv4 }}/32
     - name: Cleanup
+      if: always()
       run: |
-        rm bastion_key ec2_key
+        rm -f bastion_key ec2_key
