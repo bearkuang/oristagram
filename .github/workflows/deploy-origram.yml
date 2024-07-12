@@ -154,20 +154,21 @@ jobs:
         DB_HOST: ${{ secrets.DB_HOST }}
         DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
       run: |
-        ssh -v -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i bastion_key -J ${USER_NAME}@${BASTION_HOST} ${USER_NAME}@${PRIVATE_HOST} \
-        "docker login -u AWS -p $(aws ecr get-login-password --region ap-northeast-2) ${ECR_REGISTRY} && \
-         docker pull ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG} && \
-         docker stop my-django-app || true && \
-         docker rm my-django-app || true && \
-         docker run -d --name my-django-app -p 8000:8000 \
-         -e DB_NAME='${DB_NAME}' \
-         -e DB_USER='${DB_USER}' \
-         -e DB_PASSWORD='${DB_PASSWORD}' \
-         -e DB_HOST='${DB_HOST}' \
-         -e DJANGO_SECRET_KEY='${DJANGO_SECRET_KEY}' \
-         -e DJANGO_DEBUG='False' \
-         ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG} && \
-         docker exec my-django-app python manage.py migrate"
+        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i bastion_key -J ${USER_NAME}@${BASTION_HOST} ${USER_NAME}@${PRIVATE_HOST} << EOF
+          docker login -u AWS -p \$(aws ecr get-login-password --region ap-northeast-2) ${ECR_REGISTRY}
+          docker pull ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
+          docker stop my-django-app || true
+          docker rm my-django-app || true
+          docker run -d --name my-django-app -p 8000:8000 \
+            -e DB_NAME='${DB_NAME}' \
+            -e DB_USER='${DB_USER}' \
+            -e DB_PASSWORD='${DB_PASSWORD}' \
+            -e DB_HOST='${DB_HOST}' \
+            -e DJANGO_SECRET_KEY='${DJANGO_SECRET_KEY}' \
+            -e DJANGO_DEBUG='False' \
+            ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
+          docker exec my-django-app python manage.py migrate
+        EOF
     - name: Remove Github Actions IP From Security Group
       if: always()
       run: |
