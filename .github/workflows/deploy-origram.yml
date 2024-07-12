@@ -126,7 +126,7 @@ jobs:
       run: |
         echo "$BASTION_PRIVATE_KEY" > bastion_key && chmod 600 bastion_key
         echo "$EC2_PRIVATE_KEY" > ec2_key && chmod 600 ec2_key
-        ssh -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/dev/null -i bastion_key -J ${USER_NAME}@${BASTION_HOST} ${USER_NAME}@${PRIVATE_HOST} \
+        ssh -v -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/dev/null -i bastion_key -J ${USER_NAME}@${BASTION_HOST} ${USER_NAME}@${PRIVATE_HOST} 'echo "Connection successful"'
         "docker login -u AWS -p $(aws ecr get-login-password --region ap-northeast-2) ${ECR_REGISTRY} && \
          docker pull ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG} && \
          docker stop my-django-app || true && \
