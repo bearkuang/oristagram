@@ -150,14 +150,41 @@ jobs:
         BASTION_HOST: ${{ secrets.BASTION_HOST }}
         PRIVATE_HOST: ${{ secrets.PRIVATE_HOST }}
         ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
-    - name: Test connection to Private EC2
+    - name: Check key file permissions
       run: |
-        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i bastion_key.pem -J ${USER_NAME}@${BASTION_HOST} \
-          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ec2_key.pem ${USER_NAME}@${PRIVATE_HOST} 'echo "Connection to Private EC2 successful"'
+        ls -l bastion_key.pem ec2_key.pem
+        chmod 600 bastion_key.pem ec2_key.pem
+        ls -l bastion_key.pem ec2_key.pem
+    - name: Check key file content
+      run: |
+        echo "First line of bastion_key.pem:"
+        head -n 1 bastion_key.pem
+        echo "First line of ec2_key.pem:"
+        head -n 1 ec2_key.pem
+    - name: Debug environment variables
+      run: |
+        echo "USER_NAME: $USER_NAME"
+        echo "BASTION_HOST: $BASTION_HOST"
+        echo "PRIVATE_HOST: $PRIVATE_HOST"
       env:
         USER_NAME: ${{ secrets.USER_NAME }}
         BASTION_HOST: ${{ secrets.BASTION_HOST }}
         PRIVATE_HOST: ${{ secrets.PRIVATE_HOST }}
+    - name: Test connection to Private EC2
+      run: |
+        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ec2_key.pem \
+          -o ProxyCommand="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i bastion_key.pem -W %h:%p ${USER_NAME}@${BASTION_HOST}" \
+          ${USER_NAME}@${PRIVATE_HOST} 'echo "Connection to Private EC2 successful"'
+      env:
+        USER_NAME: ${{ secrets.USER_NAME }}
+        BASTION_HOST: ${{ secrets.BASTION_HOST }}
+        PRIVATE_HOST: ${{ secrets.PRIVATE_HOST }}
+    - name: Test SSH connection with verbose output
+      run: |
+        ssh -vvv -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i bastion_key.pem ${USER_NAME}@${BASTION_HOST} 'echo "Bastion connection successful"'
+      env:
+        USER_NAME: ${{ secrets.USER_NAME }}
+        BASTION_HOST: ${{ secrets.BASTION_HOST }}
     - name: Deploy to EC2
       run: |
         set -e
