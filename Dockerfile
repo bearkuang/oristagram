@@ -21,6 +21,8 @@ ENV DB_PASSWORD=$DB_PASSWORD
 ENV DB_HOST=$DB_HOST
 ENV DB_PORT=$DB_PORT
 
+RUN pip install gunicorn
+
 RUN python manage.py collectstatic --noinput
 
 EXPOSE 8000
