@@ -204,19 +204,19 @@ jobs:
               -e DB_NAME='${DB_NAME}' \
               -e DB_PORT='${DB_PORT}' \
               my-django-app python -c "
-            import os
-            import MySQLdb
-            conn = MySQLdb.connect(
-                host=os.environ.get('DB_HOST'),
-                user=os.environ.get('DB_USER'),
-                passwd=os.environ.get('DB_PASSWORD'),
-                db=os.environ.get('DB_NAME'),
-                port=int(os.environ.get('DB_PORT', 3306))
-            )
-            print('Database connection successful')
-            conn.close()
-            "
-        INNEREOF
+        import os
+        import MySQLdb
+        conn = MySQLdb.connect(
+            host=os.environ.get('DB_HOST'),
+            user=os.environ.get('DB_USER'),
+            passwd=os.environ.get('DB_PASSWORD'),
+            db=os.environ.get('DB_NAME'),
+            port=int(os.environ.get('DB_PORT', 3306))
+        )
+        print('Database connection successful')
+        conn.close()
+        "
+          INNEREOF
         EOF
       env:
         USER_NAME: ${{ secrets.USER_NAME }}
