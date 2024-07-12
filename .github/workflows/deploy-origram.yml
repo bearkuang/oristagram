@@ -193,9 +193,24 @@ jobs:
         USER_NAME: ${{ secrets.USER_NAME }}
         BASTION_HOST: ${{ secrets.BASTION_HOST }}
         PRIVATE_HOST: ${{ secrets.PRIVATE_HOST }}
+    - name: Install Docker on Private EC2
+      run: |
+        ssh -o StrictHostKeyChecking=no -i bastion_key ${USER_NAME}@${BASTION_HOST} << EOF
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/${{ secrets.PRIVATE_KEY_NAME }} ubuntu@${PRIVATE_HOST} << 'INNEREOF'
+            sudo apt-get update
+            sudo apt-get install -y docker.io
+            sudo systemctl start docker
+            sudo systemctl enable docker
+            sudo usermod -aG docker ubuntu
+        INNEREOF
+        EOF
+      env:
+        USER_NAME: ${{ secrets.USER_NAME }}
+        BASTION_HOST: ${{ secrets.BASTION_HOST }}
+        PRIVATE_HOST: ${{ secrets.PRIVATE_HOST }}
     - name: Deploy to EC2
       run: |
-        ssh -v -o StrictHostKeyChecking=no -i bastion_key ${USER_NAME}@${BASTION_HOST} << EOF
+        ssh -o StrictHostKeyChecking=no -i bastion_key ${USER_NAME}@${BASTION_HOST} << EOF
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/${{ secrets.PRIVATE_KEY_NAME }} ubuntu@${PRIVATE_HOST} << 'INNEREOF'
             docker login -u AWS -p $(aws ecr get-login-password --region ap-northeast-2) ${ECR_REGISTRY}
             docker pull ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
@@ -210,7 +225,7 @@ jobs:
               -e DJANGO_DEBUG='False' \
               ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
             docker exec my-django-app python manage.py migrate
-          INNEREOF
+        INNEREOF
         EOF
       env:
         USER_NAME: ${{ secrets.USER_NAME }}
