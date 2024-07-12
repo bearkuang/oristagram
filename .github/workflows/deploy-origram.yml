@@ -138,7 +138,47 @@ jobs:
       env:
         USER_NAME: ${{ secrets.USER_NAME }}
         BASTION_HOST: ${{ secrets.BASTION_HOST }}
+    - name: Validate environment variables
+      run: |
+        [[ -z "$USER_NAME" ]] && echo "USER_NAME is not set" && exit 1
+        [[ -z "$BASTION_HOST" ]] && echo "BASTION_HOST is not set" && exit 1
+        [[ -z "$PRIVATE_HOST" ]] && echo "PRIVATE_HOST is not set" && exit 1
+        [[ -z "$ECR_REGISTRY" ]] && echo "ECR_REGISTRY is not set" && exit 1
+        echo "All required environment variables are set"
+      env:
+        USER_NAME: ${{ secrets.USER_NAME }}
+        BASTION_HOST: ${{ secrets.BASTION_HOST }}
+        PRIVATE_HOST: ${{ secrets.PRIVATE_HOST }}
+        ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+    
+    - name: Test connection to Private EC2
+      run: |
+        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i bastion_key -J ${USER_NAME}@${BASTION_HOST} \
+          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ec2_key ${USER_NAME}@${PRIVATE_HOST} 'echo "Connection to Private EC2 successful"'
+      env:
+        USER_NAME: ${{ secrets.USER_NAME }}
+        BASTION_HOST: ${{ secrets.BASTION_HOST }}
+        PRIVATE_HOST: ${{ secrets.PRIVATE_HOST }}
     - name: Deploy to EC2
+      run: |
+        set -e
+        ssh -tt -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i bastion_key -J ${USER_NAME}@${BASTION_HOST} \
+          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ec2_key ${USER_NAME}@${PRIVATE_HOST} << EOF
+            set -e
+            docker login -u AWS -p \$(aws ecr get-login-password --region ap-northeast-2) ${ECR_REGISTRY}
+            docker pull ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
+            docker stop my-django-app || true
+            docker rm my-django-app || true
+            docker run -d --name my-django-app -p 8000:8000 \
+              -e DB_NAME='${DB_NAME}' \
+              -e DB_USER='${DB_USER}' \
+              -e DB_PASSWORD='${DB_PASSWORD}' \
+              -e DB_HOST='${DB_HOST}' \
+              -e DJANGO_SECRET_KEY='${DJANGO_SECRET_KEY}' \
+              -e DJANGO_DEBUG='False' \
+              ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
+            docker exec my-django-app python manage.py migrate
+        EOF
       env:
         BASTION_PRIVATE_KEY: ${{ secrets.BASTION_PRIVATE_KEY }}
         EC2_PRIVATE_KEY: ${{ secrets.EC2_PRIVATE_KEY }}
@@ -153,22 +193,15 @@ jobs:
         DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         DB_HOST: ${{ secrets.DB_HOST }}
         DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+    - name: Check deployment status
       run: |
-        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i bastion_key -J ${USER_NAME}@${BASTION_HOST} ${USER_NAME}@${PRIVATE_HOST} << EOF
-          docker login -u AWS -p \$(aws ecr get-login-password --region ap-northeast-2) ${ECR_REGISTRY}
-          docker pull ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
-          docker stop my-django-app || true
-          docker rm my-django-app || true
-          docker run -d --name my-django-app -p 8000:8000 \
-            -e DB_NAME='${DB_NAME}' \
-            -e DB_USER='${DB_USER}' \
-            -e DB_PASSWORD='${DB_PASSWORD}' \
-            -e DB_HOST='${DB_HOST}' \
-            -e DJANGO_SECRET_KEY='${DJANGO_SECRET_KEY}' \
-            -e DJANGO_DEBUG='False' \
-            ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
-          docker exec my-django-app python manage.py migrate
-        EOF
+        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i bastion_key -J ${USER_NAME}@${BASTION_HOST} \
+          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ec2_key ${USER_NAME}@${PRIVATE_HOST} \
+          'docker ps | grep my-django-app && echo "Deployment successful" || echo "Deployment failed"'
+      env:
+        USER_NAME: ${{ secrets.USER_NAME }}
+        BASTION_HOST: ${{ secrets.BASTION_HOST }}
+        PRIVATE_HOST: ${{ secrets.PRIVATE_HOST }}
     - name: Remove Github Actions IP From Security Group
       if: always()
       run: |
