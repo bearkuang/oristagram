@@ -121,13 +121,23 @@ jobs:
         echo "EC2 key file exists: $(test -f ec2_key && echo Yes || echo No)"
     - name: Check environment variables
       run: |
-        echo "BASTION_HOST is set: ${{ secrets.BASTION_HOST != '' }}"
-        echo "PRIVATE_HOST is set: ${{ secrets.PRIVATE_HOST != '' }}"
         echo "USER_NAME is set: ${{ secrets.USER_NAME != '' }}"
-        echo "ECR_REGISTRY is set: ${{ secrets.ECR_REGISTRY != '' }}"
+        echo "BASTION_HOST is set: ${{ secrets.BASTION_HOST != '' }}"
+        echo "BASTION_PRIVATE_KEY length: ${#BASTION_PRIVATE_KEY}"
+      env:
+        BASTION_PRIVATE_KEY: ${{ secrets.BASTION_PRIVATE_KEY }}
+    - name: Check key file
+      run: |
+        ls -l bastion_key
+        file bastion_key
+        echo "First line of bastion_key:"
+        head -n 1 bastion_key
     - name: Test Bastion Connection
       run: |
-        ssh -v -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i bastion_key ${USER_NAME}@${BASTION_HOST} 'echo "Bastion connection successful"'
+        ssh -v -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i bastion_key ${{ secrets.USER_NAME }}@${{ secrets.BASTION_HOST }} 'echo "Bastion connection successful"'
+      env:
+        USER_NAME: ${{ secrets.USER_NAME }}
+        BASTION_HOST: ${{ secrets.BASTION_HOST }}
     - name: Deploy to EC2
       env:
         BASTION_PRIVATE_KEY: ${{ secrets.BASTION_PRIVATE_KEY }}
