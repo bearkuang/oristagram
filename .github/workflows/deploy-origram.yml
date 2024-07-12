@@ -193,6 +193,54 @@ jobs:
         USER_NAME: ${{ secrets.USER_NAME }}
         BASTION_HOST: ${{ secrets.BASTION_HOST }}
         PRIVATE_HOST: ${{ secrets.PRIVATE_HOST }}
+    
+    - name: Install Docker on Private EC2
+      run: |
+        ssh -o StrictHostKeyChecking=no -i bastion_key ${USER_NAME}@${BASTION_HOST} << EOF
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/${{ secrets.PRIVATE_KEY_NAME }} ubuntu@${PRIVATE_HOST} << 'INNEREOF'
+            sudo apt-get update
+            sudo apt-get install -y docker.io
+            sudo systemctl start docker
+            sudo systemctl enable docker
+            sudo usermod -aG docker ubuntu
+        INNEREOF
+        EOF
+      env:
+        USER_NAME: ${{ secrets.USER_NAME }}
+        BASTION_HOST: ${{ secrets.BASTION_HOST }}
+        PRIVATE_HOST: ${{ secrets.PRIVATE_HOST }}
+    - name: Deploy to EC2
+      run: |
+        ssh -o StrictHostKeyChecking=no -i bastion_key ${USER_NAME}@${BASTION_HOST} << EOF
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/${{ secrets.PRIVATE_KEY_NAME }} ubuntu@${PRIVATE_HOST} << 'INNEREOF'
+            docker login -u AWS -p $(aws ecr get-login-password --region ap-northeast-2) ${ECR_REGISTRY}
+            docker pull ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
+            docker stop my-django-app || true
+            docker rm my-django-app || true
+            docker run -d --name my-django-app -p 8000:8000 \
+              -e DB_NAME='${DB_NAME}' \
+              -e DB_USER='${DB_USER}' \
+              -e DB_PASSWORD='${DB_PASSWORD}' \
+              -e DB_HOST='${DB_HOST}' \
+              -e DJANGO_SECRET_KEY='${DJANGO_SECRET_KEY}' \
+              -e DJANGO_DEBUG='False' \
+              ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
+              gunicorn instaproject.wsgi:application --bind 0.0.0.0:8000
+            docker exec my-django-app python manage.py migrate --no-input
+        INNEREOF
+        EOF
+      env:
+        USER_NAME: ${{ secrets.USER_NAME }}
+        BASTION_HOST: ${{ secrets.BASTION_HOST }}
+        PRIVATE_HOST: ${{ secrets.PRIVATE_HOST }}
+        ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+        ECR_REPOSITORY: my-django-app
+        IMAGE_TAG: ${{ github.sha }}
+        DB_NAME: ${{ secrets.DB_NAME }}
+        DB_USER: ${{ secrets.DB_USER }}
+        DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        DB_HOST: ${{ secrets.DB_HOST }}
+        DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
     - name: Test database connection
       run: |
         ssh -o StrictHostKeyChecking=no -i bastion_key ${USER_NAME}@${BASTION_HOST} << EOF
@@ -227,52 +275,6 @@ jobs:
         DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         DB_NAME: ${{ secrets.DB_NAME }}
         DB_PORT: ${{ secrets.DB_PORT }}
-    - name: Install Docker on Private EC2
-      run: |
-        ssh -o StrictHostKeyChecking=no -i bastion_key ${USER_NAME}@${BASTION_HOST} << EOF
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/${{ secrets.PRIVATE_KEY_NAME }} ubuntu@${PRIVATE_HOST} << 'INNEREOF'
-            sudo apt-get update
-            sudo apt-get install -y docker.io
-            sudo systemctl start docker
-            sudo systemctl enable docker
-            sudo usermod -aG docker ubuntu
-        INNEREOF
-        EOF
-      env:
-        USER_NAME: ${{ secrets.USER_NAME }}
-        BASTION_HOST: ${{ secrets.BASTION_HOST }}
-        PRIVATE_HOST: ${{ secrets.PRIVATE_HOST }}
-    - name: Deploy to EC2
-      run: |
-        ssh -o StrictHostKeyChecking=no -i bastion_key ${USER_NAME}@${BASTION_HOST} << EOF
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/${{ secrets.PRIVATE_KEY_NAME }} ubuntu@${PRIVATE_HOST} << 'INNEREOF'
-            docker login -u AWS -p $(aws ecr get-login-password --region ap-northeast-2) ${ECR_REGISTRY}
-            docker pull ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
-            docker stop my-django-app || true
-            docker rm my-django-app || true
-            docker run -d --name my-django-app -p 8000:8000 \
-              -e DB_NAME='${DB_NAME}' \
-              -e DB_USER='${DB_USER}' \
-              -e DB_PASSWORD='${DB_PASSWORD}' \
-              -e DB_HOST='${DB_HOST}' \
-              -e DJANGO_SECRET_KEY='${DJANGO_SECRET_KEY}' \
-              -e DJANGO_DEBUG='False' \
-              ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
-            docker exec my-django-app python manage.py migrate
-        INNEREOF
-        EOF
-      env:
-        USER_NAME: ${{ secrets.USER_NAME }}
-        BASTION_HOST: ${{ secrets.BASTION_HOST }}
-        PRIVATE_HOST: ${{ secrets.PRIVATE_HOST }}
-        ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
-        ECR_REPOSITORY: my-django-app
-        IMAGE_TAG: ${{ github.sha }}
-        DB_NAME: ${{ secrets.DB_NAME }}
-        DB_USER: ${{ secrets.DB_USER }}
-        DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-        DB_HOST: ${{ secrets.DB_HOST }}
-        DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
     - name: Check deployment status
       run: |
         ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i bastion_key -J ${USER_NAME}@${BASTION_HOST} \
