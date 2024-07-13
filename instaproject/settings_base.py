@@ -13,7 +13,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-(_*fc=p92g3l7^)z13k*k7xjx)t4@_n3-8w@yw5ebc^d5r=$0e'
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -102,12 +102,12 @@ AUTH_USER_MODEL = 'instaapp.CustomUser'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'instagram',
-        'USER': 'ori',
-        'PASSWORD': 'oripassword',
-        'HOST': 'localhost',
-        'PORT': '3306',
-    },
+        'NAME': os.environ.get('DB_NAME'),
+        'USER': os.environ.get('DB_USER'),
+        'PASSWORD': os.environ.get('DB_PASSWORD'),
+        'HOST': os.environ.get('DB_HOST'),
+        'PORT': os.environ.get('DB_PORT', '3306'),
+    }
 }
 
 # Password validation
