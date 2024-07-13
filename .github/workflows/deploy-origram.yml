@@ -223,15 +223,6 @@ jobs:
         PRIVATE_HOST: ${{ secrets.PRIVATE_HOST }}
         DB_HOST: ${{ secrets.DB_HOST }}
         DB_PORT: ${{ secrets.DB_PORT }}
-
-    - name: Check disk space
-      run: |
-        ssh -o StrictHostKeyChecking=no -i bastion_key ${USER_NAME}@${BASTION_HOST} << EOF
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/${{ secrets.PRIVATE_KEY_NAME }} ubuntu@${PRIVATE_HOST} << 'INNEREOF'
-            df -h
-            docker system df
-        INNEREOF
-        EOF
     
     - name: 📡 Deploy to EC2
       run: |
