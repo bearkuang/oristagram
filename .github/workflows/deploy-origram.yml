@@ -209,6 +209,21 @@ jobs:
         USER_NAME: ${{ secrets.USER_NAME }}
         BASTION_HOST: ${{ secrets.BASTION_HOST }}
         PRIVATE_HOST: ${{ secrets.PRIVATE_HOST }}
+
+    - name: 🚨 Test network connection
+      run: |
+        ssh -o StrictHostKeyChecking=no -i bastion_key ${USER_NAME}@${BASTION_HOST} << EOF
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/${{ secrets.PRIVATE_KEY_NAME }} ubuntu@${PRIVATE_HOST} << 'INNEREOF'
+            nc -zv ${DB_HOST} ${DB_PORT}
+        INNEREOF
+        EOF
+      env:
+        USER_NAME: ${{ secrets.USER_NAME }}
+        BASTION_HOST: ${{ secrets.BASTION_HOST }}
+        PRIVATE_HOST: ${{ secrets.PRIVATE_HOST }}
+        DB_HOST: ${{ secrets.DB_HOST }}
+        DB_PORT: ${{ secrets.DB_PORT }}
+    
     - name: 📡 Deploy to EC2
       run: |
         ssh -o StrictHostKeyChecking=no -i bastion_key ${USER_NAME}@${BASTION_HOST} << EOF
