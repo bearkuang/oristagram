@@ -218,13 +218,14 @@ jobs:
             docker stop my-django-app || true
             docker rm my-django-app || true
             docker run -d --name my-django-app -p 8000:8000 \
-              -e DJANGO_ENVIRONMENT='production' \
+              -e DJANGO_SETTINGS_MODULE=instaproject.settings \
               -e DJANGO_SECRET_KEY='${DJANGO_SECRET_KEY}' \
               -e DB_NAME='${DB_NAME}' \
               -e DB_USER='${DB_USER}' \
               -e DB_PASSWORD='${DB_PASSWORD}' \
               -e DB_HOST='${DB_HOST}' \
               -e DB_PORT='${DB_PORT}' \
+              -e DJANGO_ENVIRONMENT='production' \
               ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG} \
               gunicorn instaproject.wsgi:application --bind 0.0.0.0:8000
             docker exec my-django-app python manage.py migrate --no-input
