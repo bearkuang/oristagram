@@ -242,7 +242,8 @@ jobs:
               -e DB_PORT='${DB_PORT}' \
               -e DJANGO_ENVIRONMENT='production' \
               ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG} \
-              sh -c "python manage.py migrate --no-input && gunicorn instaproject.wsgi:application --bind 0.0.0.0:8000"
+              gunicorn instaproject.wsgi:application --bind 0.0.0.0:8000
+            docker exec my-django-app python manage.py migrate --no-input
         INNEREOF
         EOF
       env:
@@ -259,13 +260,13 @@ jobs:
         DB_HOST: ${{ secrets.DB_HOST }}
         DB_PORT: ${{ secrets.DB_PORT }}
 
-    - name: 🔄 Attempt to restart container
+    - name: 🔄 Restart container and check logs
       run: |
         ssh -o StrictHostKeyChecking=no -i bastion_key ${USER_NAME}@${BASTION_HOST} << EOF
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/${{ secrets.PRIVATE_KEY_NAME }} ubuntu@${PRIVATE_HOST} << 'INNEREOF'
-            echo "Attempting to restart container:"
-            docker start my-django-app || echo "Failed to start container"
-            docker ps | grep my-django-app || echo "Container still not running"
+            docker restart my-django-app
+            sleep 5
+            docker logs my-django-app
         INNEREOF
         EOF
       env:
