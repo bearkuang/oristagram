@@ -242,8 +242,7 @@ jobs:
               -e DB_PORT='${DB_PORT}' \
               -e DJANGO_ENVIRONMENT='production' \
               ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG} \
-              sh -c "gunicorn instaproject.wsgi:application --bind 0.0.0.0:8000"
-            docker exec my-django-app python manage.py migrate --no-input
+              sh -c "python manage.py migrate --no-input && gunicorn instaproject.wsgi:application --bind 0.0.0.0:8000"
         INNEREOF
         EOF
       env:
