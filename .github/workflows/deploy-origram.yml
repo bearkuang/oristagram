@@ -259,11 +259,13 @@ jobs:
         DB_HOST: ${{ secrets.DB_HOST }}
         DB_PORT: ${{ secrets.DB_PORT }}
 
-    - name: ✅ Check container status
+    - name: 🔄 Attempt to restart container
       run: |
         ssh -o StrictHostKeyChecking=no -i bastion_key ${USER_NAME}@${BASTION_HOST} << EOF
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/${{ secrets.PRIVATE_KEY_NAME }} ubuntu@${PRIVATE_HOST} << 'INNEREOF'
-        docker ps | grep my-django-app
+            echo "Attempting to restart container:"
+            docker start my-django-app || echo "Failed to start container"
+            docker ps | grep my-django-app || echo "Container still not running"
         INNEREOF
         EOF
       env:
