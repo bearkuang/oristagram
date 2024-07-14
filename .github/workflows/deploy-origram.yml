@@ -265,7 +265,19 @@ jobs:
         DB_HOST: ${{ secrets.DB_HOST }}
         DB_PORT: ${{ secrets.DB_PORT }}
 
-    - name: Check container status
+    - name: 📋 Check container logs
+      run: |
+        ssh -o StrictHostKeyChecking=no -i bastion_key ${USER_NAME}@${BASTION_HOST} << EOF
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/${{ secrets.PRIVATE_KEY_NAME }} ubuntu@${PRIVATE_HOST} << 'INNEREOF'
+            docker logs my-django-app
+          INNEREOF
+        EOF
+      env:
+        USER_NAME: ${{ secrets.USER_NAME }}
+        BASTION_HOST: ${{ secrets.BASTION_HOST }}
+        PRIVATE_HOST: ${{ secrets.PRIVATE_HOST }}
+
+    - name: ✅ Check container status
       run: |
         ssh -o StrictHostKeyChecking=no -i bastion_key ${USER_NAME}@${BASTION_HOST} << EOF
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/${{ secrets.PRIVATE_KEY_NAME }} ubuntu@${PRIVATE_HOST} << 'INNEREOF'
@@ -298,18 +310,6 @@ jobs:
         ssh -o StrictHostKeyChecking=no -i bastion_key ${USER_NAME}@${BASTION_HOST} << EOF
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/${{ secrets.PRIVATE_KEY_NAME }} ubuntu@${PRIVATE_HOST} << 'INNEREOF'
             docker exec my-django-app python manage.py check --database default
-          INNEREOF
-        EOF
-      env:
-        USER_NAME: ${{ secrets.USER_NAME }}
-        BASTION_HOST: ${{ secrets.BASTION_HOST }}
-        PRIVATE_HOST: ${{ secrets.PRIVATE_HOST }}
-
-    - name: 📋 Check container logs
-      run: |
-        ssh -o StrictHostKeyChecking=no -i bastion_key ${USER_NAME}@${BASTION_HOST} << EOF
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/${{ secrets.PRIVATE_KEY_NAME }} ubuntu@${PRIVATE_HOST} << 'INNEREOF'
-            docker logs my-django-app
           INNEREOF
         EOF
       env:
