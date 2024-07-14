@@ -106,6 +106,19 @@ AUTH_USER_MODEL = 'instaapp.CustomUser'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'instagram',
+        'USER': 'ori',
+        'PASSWORD': 'oripassword',
+        'HOST': 'localhost',
+        'PORT': '3306',
+    },
+}
+
+# 환경 변수 DJANGO_ENVIRONMENT가 'production'일 때 RDS 설정 사용
+if os.environ.get('DJANGO_ENVIRONMENT') == 'production':
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
         'NAME': os.environ.get('DB_NAME'),
         'USER': os.environ.get('DB_USER'),
         'PASSWORD': os.environ.get('DB_PASSWORD'),
