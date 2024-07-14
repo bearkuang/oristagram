@@ -126,6 +126,7 @@ jobs:
         echo "BASTION_PRIVATE_KEY length: ${#BASTION_PRIVATE_KEY}"
       env:
         BASTION_PRIVATE_KEY: ${{ secrets.BASTION_PRIVATE_KEY }}
+        
     - name: Check and fix .ssh directory permissions
       run: |
         ssh -o StrictHostKeyChecking=no -i bastion_key ${USER_NAME}@${BASTION_HOST} '
@@ -136,12 +137,14 @@ jobs:
       env:
         USER_NAME: ${{ secrets.USER_NAME }}
         BASTION_HOST: ${{ secrets.BASTION_HOST }}
+        
     - name: Transfer EC2 private key to bastion host
       run: |
         scp -o StrictHostKeyChecking=no -i bastion_key ec2_key ${USER_NAME}@${BASTION_HOST}:~/
       env:
         USER_NAME: ${{ secrets.USER_NAME }}
         BASTION_HOST: ${{ secrets.BASTION_HOST }}
+        
     - name: Move key file to .ssh directory
       run: |
         ssh -o StrictHostKeyChecking=no -i bastion_key ${USER_NAME}@${BASTION_HOST} '
@@ -159,18 +162,21 @@ jobs:
       env:
         USER_NAME: ${{ secrets.USER_NAME }}
         BASTION_HOST: ${{ secrets.BASTION_HOST }}
+        
     - name: Check key file
       run: |
         ls -l bastion_key
         file bastion_key
         echo "First line of bastion_key:"
         head -n 1 bastion_key
+        
     - name: Test Bastion Connection
       run: |
         ssh -v -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i bastion_key ${{ secrets.USER_NAME }}@${{ secrets.BASTION_HOST }} 'echo "Bastion connection successful"'
       env:
         USER_NAME: ${{ secrets.USER_NAME }}
         BASTION_HOST: ${{ secrets.BASTION_HOST }}
+        
     - name: Validate environment variables
       run: |
         [[ -z "$USER_NAME" ]] && echo "USER_NAME is not set" && exit 1
@@ -242,8 +248,7 @@ jobs:
               -e DB_PORT='${DB_PORT}' \
               -e DJANGO_ENVIRONMENT='production' \
               ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG} \
-              gunicorn instaproject.wsgi:application --bind 0.0.0.0:8000
-            docker exec my-django-app python manage.py migrate --no-input
+              sh -c "python manage.py migrate --no-input && gunicorn instaproject.wsgi:application --bind 0.0.0.0:8000"
         INNEREOF
         EOF
       env:
@@ -259,6 +264,20 @@ jobs:
         DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         DB_HOST: ${{ secrets.DB_HOST }}
         DB_PORT: ${{ secrets.DB_PORT }}
+
+    - name: Check container status
+      run: |
+        ssh -o StrictHostKeyChecking=no -i bastion_key ${USER_NAME}@${BASTION_HOST} << EOF
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/${{ secrets.PRIVATE_KEY_NAME }} ubuntu@${PRIVATE_HOST} << 'INNEREOF'
+            docker ps -a
+            echo "Container logs:"
+            docker logs my-django-app
+        INNEREOF
+        EOF
+      env:
+        USER_NAME: ${{ secrets.USER_NAME }}
+        BASTION_HOST: ${{ secrets.BASTION_HOST }}
+        PRIVATE_HOST: ${{ secrets.PRIVATE_HOST }}
 
     - name: 🔄 Restart container and check logs
       run: |
