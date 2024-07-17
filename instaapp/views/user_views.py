@@ -12,8 +12,9 @@ from instaapp.models.post import Post
 from instaapp.models.mark import Mark
 from instaapp.models.reels import Reels
 from instaapp.serializers import UserSerializer, PostSerializer, ReelsSerializer
-from instaapp.services.user_services import create_user, login_user, reactivate_user, delete_user
+from instaapp.services.user_services import create_user, login_user, reactivate_user, delete_user, send_verification_email, verify_email_code
 from instaapp.authentication import TempTokenAuthentication
+from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
@@ -23,11 +24,38 @@ class UserViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def get_permissions(self):
-        if self.action in ['create', 'login', 'register']:
+        if self.action in ['create', 'login', 'register', 'request_verification', 'verify_email', 'check_duplicate']:
             self.permission_classes = [AllowAny]
         else:
             self.permission_classes = [IsAuthenticated]
         return super().get_permissions()
+    
+    # 이메일 인증번호 전송
+    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
+    def request_verification(self, request):
+        email = request.data.get('email')
+        if not email:
+            return Response({"error": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            send_verification_email(email)
+            return Response({'message': 'Verification code sent successfully'})
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    # 인증번호 확인
+    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
+    def verify_email(self, request):
+        email = request.data.get('email')
+        code = request.data.get('code')
+        
+        if not email or not code:
+            return Response({"error": "Email and code are required"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if verify_email_code(email, code):
+            return Response({'message': 'Email verified successfully'})
+        else:
+            return Response({'error': 'Invalid or expired verification code'}, status=status.HTTP_400_BAD_REQUEST)
     
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -66,7 +94,42 @@ class UserViewSet(viewsets.ModelViewSet):
                 return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
             except ValueError as e:
                 return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            
+        email = serializer.validated_data['email']
+        username = serializer.validated_data['username']
+        
+        errors = {}
+        
+        # 아이디와 이메일 중복 검사를 한 번에 수행
+        if CustomUser.objects.filter(username=username).exists():
+            errors['cust_username'] = "이미 가입된 아이디입니다."
+        
+        if CustomUser.objects.filter(email=email).exists():
+            errors['cust_email'] = "이미 가입된 이메일입니다."
+        
+        if errors:
+            return Response(errors, status=status.HTTP_400_BAD_REQUEST)
+
+        # 이메일 인증 코드 확인
+        verification_code = request.data.get('verification_code')
+        if not verify_email_code(email, verification_code):
+            return Response({"error": "Invalid or expired verification code"}, status=status.HTTP_400_BAD_REQUEST)
+        
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    # 중복확인
+    @action(detail=False, methods=['post'])
+    def check_duplicate(self, request):
+        email = request.data.get('email')
+        errors = {}
+
+        if email and CustomUser.objects.filter(email=email).exists():
+            errors['cust_email'] = '이미 가입된 이메일입니다. 다른 이메일을 입력해주세요.'
+
+        if errors:
+            return Response(errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        return Response({'message': 'Valid email'}, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def following(self, request, pk=None):

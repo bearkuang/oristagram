@@ -15,6 +15,33 @@ from instaapp.serializers import PostSerializer, ImageSerializer, CommentSeriali
 from instaapp.models.validators import validate_feed_file_type, validate_feed_video_length, validate_file_type, validate_video_length
 from django.db.models import Count
 import json
+from PIL import Image as PILImage
+from PIL import ImageOps, ImageFilter
+from io import BytesIO
+from django.core.files.base import ContentFile
+
+def apply_filter(img, filter_name):
+    if filter_name == 'grayscale':
+        return ImageOps.grayscale(img)
+    elif filter_name == 'invert':
+        return ImageOps.invert(img)
+    elif filter_name == 'sepia':
+        return sepia(img)
+    elif filter_name == 'blur':
+        return img.filter(ImageFilter.BLUR)
+    return img
+
+def sepia(img):
+    width, height = img.size
+    pixels = img.load()
+    for py in range(height):
+        for px in range(width):
+            r, g, b = img.getpixel((px, py))
+            tr = int(0.393 * r + 0.769 * g + 0.189 * b)
+            tg = int(0.349 * r + 0.686 * g + 0.168 * b)
+            tb = int(0.272 * r + 0.534 * g + 0.131 * b)
+            pixels[px, py] = (min(tr,255), min(tg,255), min(tb,255))
+    return img
 
 class PostViewSet(viewsets.ModelViewSet):
     queryset = Post.objects.all().order_by('-created_at')
@@ -29,21 +56,30 @@ class PostViewSet(viewsets.ModelViewSet):
 
         try:
             tags_data = json.loads(data.get('tags', '[]'))
-        except json.JSONDecodeError:
-            tags_data = []
-
-        try:
             mentions_data = json.loads(data.get('mentions', '[]'))
         except json.JSONDecodeError:
+            tags_data = []
             mentions_data = []
 
         post = Post.objects.create(author=request.user, content=content, site=site)
 
-        for file in files:
-            validate_feed_file_type(file)  # 파일 타입 검증
+        for i, file in enumerate(files):
+            validate_feed_file_type(file)
+            filter_name = data.get(f'filter{i}', 'none')
+
             if 'video' in file.content_type:
-                validate_feed_video_length(file)  # 비디오 길이 검증
-            Image.objects.create(post=post, file=file)
+                validate_feed_video_length(file)
+                Image.objects.create(post=post, file=file, filter='none')
+            elif 'image' in file.content_type:
+                img = PILImage.open(file)
+                if filter_name != 'none':
+                    img = apply_filter(img, filter_name)
+                
+                buffer = BytesIO()
+                img.save(buffer, format='JPEG')
+                file = ContentFile(buffer.getvalue(), name=f"filtered_{file.name}")
+                
+                Image.objects.create(post=post, file=file, filter=filter_name)
 
         for tag_name in tags_data:
             tag_name = tag_name.strip()

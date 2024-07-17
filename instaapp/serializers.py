@@ -22,9 +22,16 @@ class UserSerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)
     
 class ImageSerializer(serializers.ModelSerializer):
+    filtered_url = serializers.SerializerMethodField()
+
     class Meta:
         model = Image
-        fields = ['id', 'file', 'created_at']
+        fields = ['id', 'file', 'filter', 'created_at', 'filtered_url']
+
+    def get_filtered_url(self, obj):
+        if obj.filter != 'none':
+            return obj.file.url  # 필터가 적용된 이미지의 URL을 반환
+        return None  # 필터가 적용되지 않은 경우 None 반환
         
 class TagSerializer(serializers.ModelSerializer):
     post_count = serializers.IntegerField()

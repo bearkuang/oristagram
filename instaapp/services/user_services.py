@@ -7,10 +7,39 @@ from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
 from datetime import timedelta
 from django.core.exceptions import ObjectDoesNotExist
 from instaapp.models.user import CustomUser
+import random
+from django.core.mail import send_mail
+from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
 User = get_user_model()
+
+def generate_verification_code():
+    return str(random.randint(100000, 999999))
+
+def send_verification_email(email):
+    code = generate_verification_code()
+    subject = '이메일 인증 코드'
+    message = f'귀하의 인증 코드는 {code} 입니다. 이 코드는 10분간 유효합니다.'
+    from_email = 'ori178205@gmail.com'
+    recipient_list = [email]
+    
+    send_mail(subject, message, from_email, recipient_list)
+    
+    # 캐시에 인증 코드 저장 (10분 동안 유효)
+    cache_key = f'verification_code_{email}'
+    cache.set(cache_key, code, 600)
+    
+    # 디버그 로그 추가
+    print(f"Stored code in cache: {code}")
+    print(f"Retrieved code from cache: {cache.get(cache_key)}")
+
+    return code
+
+def verify_email_code(email, code):
+    cache_code = cache.get(f'verification_code_{email}')
+    return cache_code == code
 
 def create_user(user_data):
     bio = user_data.pop('bio', '')

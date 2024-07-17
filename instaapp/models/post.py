@@ -21,6 +21,7 @@ class Post(models.Model):
 class Image(models.Model):
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='images')
     file = models.FileField(upload_to='posts/', validators=[validate_feed_file_type])
+    filter = models.CharField(max_length=50, default='none')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

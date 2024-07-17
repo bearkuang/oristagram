@@ -166,3 +166,18 @@ LOGGING = {
         'level': 'DEBUG',
     },
 }
+
+# setting mail
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'ori178205@gmail.com'
+EMAIL_HOST_PASSWORD = 'iwpk hqiz elhj nzsc'
+
+# setting cache for email
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+    }
+}
