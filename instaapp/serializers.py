@@ -148,6 +148,51 @@ class ReelsSerializer(serializers.ModelSerializer):
     def get_comment_count(self, obj):
         return obj.comments.count()
     
+class CombinedFeedSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    author = UserSerializer()
+    content = serializers.CharField()
+    created_at = serializers.DateTimeField()
+    like_count = serializers.IntegerField()
+    comment_count = serializers.SerializerMethodField()
+    is_liked = serializers.SerializerMethodField()
+    is_saved = serializers.SerializerMethodField()
+    type = serializers.SerializerMethodField()
+
+    def get_comment_count(self, obj):
+        if isinstance(obj, Post):
+            return obj.comments.count()
+        elif isinstance(obj, Reels):
+            return obj.comments.count()
+        return 0
+
+    def get_is_liked(self, obj):
+        user = self.context['request'].user
+        if isinstance(obj, Post):
+            return Like.objects.filter(user=user, post=obj).exists()
+        elif isinstance(obj, Reels):
+            return Like.objects.filter(user=user, reels=obj).exists()
+        return False
+
+    def get_is_saved(self, obj):
+        user = self.context['request'].user
+        if isinstance(obj, Post):
+            return Mark.objects.filter(user=user, post=obj).exists()
+        elif isinstance(obj, Reels):
+            return Mark.objects.filter(user=user, reels=obj).exists()
+        return False
+
+    def get_type(self, obj):
+        return 'post' if isinstance(obj, Post) else 'reels'
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if isinstance(instance, Post):
+            data['images'] = ImageSerializer(instance.images.all(), many=True).data
+        elif isinstance(instance, Reels):
+            data['videos'] = VideoSerializer(instance.videos.all(), many=True).data
+        return data
+    
 class MessageSerializer(serializers.ModelSerializer):
     sender = UserSerializer(read_only=True)
     receiver = UserSerializer(read_only=True)

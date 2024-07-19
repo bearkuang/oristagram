@@ -3,6 +3,8 @@ from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.decorators import action
+from django.utils import timezone
+from datetime import timedelta
 from instaapp.models.reels import Reels, Video
 from instaapp.models.mark import Mark
 from instaapp.models.like import Like
@@ -133,11 +135,30 @@ class ReelsViewSet(viewsets.ModelViewSet):
             return Response({'error': 'You have not saved this reels'}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
-    def feed(self, request):
+    def reels(self, request):
         user = request.user
         followed_users = Follow.objects.filter(follower=user).values_list('followed', flat=True)
-        reelss = Reels.objects.filter(author__in=followed_users).order_by('-created_at')
-        serializer = self.get_serializer(reelss, many=True)
+        
+        # 팔로우 중인 사용자들의 최근 7일간의 릴스
+        seven_days_ago = timezone.now() - timedelta(days=7)
+        followed_reels = Reels.objects.filter(
+            author__in=followed_users,
+            created_at__gte=seven_days_ago
+        ).annotate(like_count=Count('likes'))
+        
+        # 전체 피드에서 좋아요가 많은 최근 30일간의 릴스 (상위 50개)
+        thirty_days_ago = timezone.now() - timedelta(days=30)
+        popular_reels = Reels.objects.filter(
+            created_at__gte=thirty_days_ago
+        ).annotate(like_count=Count('likes'))
+        
+        # 두 쿼리셋 결합
+        combined_reels = followed_reels.union(popular_reels)
+        
+        # 결과 정렬 (좋아요 수 내림차순, 생성 날짜 내림차순)
+        final_reels = combined_reels.order_by('-like_count', '-created_at')
+        
+        serializer = self.get_serializer(final_reels, many=True)
         return Response(serializer.data)
 
     @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])

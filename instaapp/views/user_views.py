@@ -307,3 +307,15 @@ class UserViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(new_users, many=True)
         return Response(serializer.data)
+    
+    # 특정 유저 팔로우 상태 확인
+    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
+    def check_follow_status(self, request, pk=None):
+        try:
+            target_user = CustomUser.objects.get(pk=pk)
+            is_following = Follow.objects.filter(follower=request.user, followed=target_user).exists()
+            return Response({
+                'is_following': is_following
+            }, status=status.HTTP_200_OK)
+        except CustomUser.DoesNotExist:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)

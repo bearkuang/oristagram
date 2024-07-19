@@ -2,6 +2,8 @@ from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.decorators import action
+from itertools import chain
+from operator import attrgetter
 from django.utils import timezone
 from datetime import timedelta
 from instaapp.models.post import Post, Image
@@ -11,7 +13,8 @@ from instaapp.models.mark import Mark
 from instaapp.models.tag import Tag
 from instaapp.models.follow import Follow
 from instaapp.models.user import CustomUser
-from instaapp.serializers import PostSerializer, ImageSerializer, CommentSerializer, TagSerializer
+from instaapp.models.reels import Reels
+from instaapp.serializers import PostSerializer, CommentSerializer, TagSerializer, CombinedFeedSerializer
 from instaapp.models.validators import validate_feed_file_type, validate_feed_video_length, validate_file_type, validate_video_length
 from django.db.models import Count
 import json
@@ -253,4 +256,48 @@ class PostViewSet(viewsets.ModelViewSet):
         user = CustomUser.objects.get(pk=user_id)
         posts = Post.objects.filter(author=user).order_by('-created_at')
         serializer = self.get_serializer(posts, many=True)
+        return Response(serializer.data)
+    
+    # 피드와 릴스 리스트
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def combined_feed(self, request):
+        user = request.user
+        followed_users = Follow.objects.filter(follower=user).values_list('followed', flat=True)
+        
+        # 팔로우 중인 사용자들의 최근 7일간의 피드
+        seven_days_ago = timezone.now() - timedelta(days=7)
+        followed_posts = Post.objects.filter(
+            author__in=followed_users,
+            created_at__gte=seven_days_ago
+        ).annotate(like_count=Count('likes'))
+        
+        # 전체 피드에서 좋아요가 많은 최근 30일간의 피드 (상위 50개)
+        thirty_days_ago = timezone.now() - timedelta(days=30)
+        popular_posts = Post.objects.filter(
+            created_at__gte=thirty_days_ago
+        ).annotate(like_count=Count('likes'))
+        
+        # 두 쿼리셋 결합
+        combined_posts = followed_posts.union(popular_posts)
+        
+        # Reels 데이터 가져오기
+        followed_reels = Reels.objects.filter(
+            author__in=followed_users,
+            created_at__gte=seven_days_ago
+        ).annotate(like_count=Count('likes'))
+        
+        popular_reels = Reels.objects.filter(
+            created_at__gte=thirty_days_ago
+        ).annotate(like_count=Count('likes'))
+        
+        combined_reels = followed_reels.union(popular_reels)
+        
+        # Post와 Reels 합치기
+        combined_feed = sorted(
+            chain(combined_posts, combined_reels),
+            key=attrgetter('created_at'),
+            reverse=True
+        )
+        
+        serializer = CombinedFeedSerializer(combined_feed, many=True, context={'request': request})
         return Response(serializer.data)
