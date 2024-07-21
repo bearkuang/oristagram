@@ -1,4 +1,4 @@
-# Project Title
+# Origram
 
 <!--배지-->
 ![MIT License][license-shield] ![Repository Size][repository-size-shield] 
